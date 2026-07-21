@@ -53,6 +53,10 @@ public final class SQLiteStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         let session = imported.session
+        let normalizedTitle = SessionTitleNormalizer.normalize(
+            session.title,
+            workingDirectory: session.context.workingDirectory
+        )
         let artifactsJSON = try encode(session.artifacts)
         try execute(
             """
@@ -81,7 +85,7 @@ public final class SQLiteStore: @unchecked Sendable {
                 updated_at = excluded.updated_at
             """,
             bindings: [
-                .text(session.id), .text(session.provider.rawValue), .text(session.title),
+                .text(session.id), .text(session.provider.rawValue), .text(normalizedTitle),
                 .text(session.status.rawValue), .text(session.statusEvidence.confidence.rawValue),
                 .text(session.statusEvidence.source.rawValue), .text(session.statusEvidence.explanation),
                 .double(session.startedAt.timeIntervalSince1970), .double(session.lastActivityAt.timeIntervalSince1970),
@@ -364,6 +368,10 @@ public final class SQLiteStore: @unchecked Sendable {
             branch: columnText(statement, index: 12),
             commit: columnText(statement, index: 13)
         )
+        let title = SessionTitleNormalizer.normalize(
+            columnText(statement, index: 2) ?? "Untitled session",
+            workingDirectory: context.workingDirectory
+        )
         let sessionID = id
         let events = try query(
             "SELECT id, timestamp, type, role, text, raw_json FROM session_events WHERE session_id = ? ORDER BY timestamp",
@@ -382,7 +390,7 @@ public final class SQLiteStore: @unchecked Sendable {
         return Session(
             id: id,
             provider: provider,
-            title: columnText(statement, index: 2) ?? "Untitled session",
+            title: title,
             status: status,
             statusEvidence: evidence,
             startedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 7)),

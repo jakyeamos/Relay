@@ -44,6 +44,28 @@ final class RelayCoreTests: XCTestCase {
         XCTAssertEqual(imported.session.status, .completed)
     }
 
+    func testSessionTitleNormalizerMakesMetadataTitlesReadable() {
+        XCTAssertEqual(
+            SessionTitleNormalizer.normalize("<recommended_plugins>"),
+            "Recommended plugins"
+        )
+        XCTAssertEqual(
+            SessionTitleNormalizer.normalize("<codex_internal_context source=\"goal\">"),
+            "Codex internal context"
+        )
+        XCTAssertEqual(
+            SessionTitleNormalizer.normalize(
+                "# AGENTS.md instructions for /tmp/relay-project",
+                workingDirectory: "/tmp/relay-project"
+            ),
+            "AGENTS.md instructions"
+        )
+        XCTAssertEqual(
+            SessionTitleNormalizer.normalize("PLEASE IMPLEMENT THIS PLAN:"),
+            "Implement this plan"
+        )
+    }
+
     func testStatusInferencePrefersApprovalAndFailureEvidence() {
         let now = Date()
         let approval = SessionEvent(

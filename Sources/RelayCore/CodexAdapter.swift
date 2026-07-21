@@ -228,10 +228,14 @@ public struct CodexSessionParser {
         guard !events.isEmpty else { return nil }
         events.sort { $0.timestamp < $1.timestamp }
         let context = adapter.resolveContext(for: workingDirectory)
+        let normalizedTitle = SessionTitleNormalizer.normalize(
+            title ?? "Codex session",
+            workingDirectory: workingDirectory
+        )
         let statusEvidence = adapter.inferStatus(for: Session(
             id: sessionID,
             provider: .codex,
-            title: title ?? "Codex session",
+            title: normalizedTitle,
             status: .discovered,
             statusEvidence: SessionStatusEvidence(
                 status: .discovered,
@@ -250,7 +254,7 @@ public struct CodexSessionParser {
         let session = Session(
             id: sessionID,
             provider: .codex,
-            title: title ?? "Codex session",
+            title: normalizedTitle,
             status: statusEvidence.status,
             statusEvidence: statusEvidence,
             startedAt: events[0].timestamp,
