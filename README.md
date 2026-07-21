@@ -46,7 +46,21 @@ The helper also accepts `--database <path>` and `--sessions-root <path>` for fix
 open Relay.app
 ```
 
-The login-started helper is opt-in:
+The visible app can launch automatically at macOS login:
+
+```sh
+./scripts/install-startup.sh
+```
+
+This registers a user-level LaunchAgent for the current `Relay.app` bundle. If
+the repository moves, run the script again to refresh the registered path.
+Remove the startup registration with:
+
+```sh
+./scripts/uninstall-startup.sh
+```
+
+The headless helper remains separately opt-in:
 
 ```sh
 ./scripts/install-launch-agent.sh
