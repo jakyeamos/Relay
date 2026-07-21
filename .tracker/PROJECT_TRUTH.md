@@ -1,10 +1,10 @@
 # Relay Project Truth
 
-summary: Verified native macOS Relay foundation with AppKit, a shared Swift core, SQLite persistence, Codex-first ingestion, deterministic Playbook Intelligence, Unified Usage metrics, and guarded file transactions.
+summary: Verified native macOS Relay foundation with AppKit, a shared Swift core, SQLite persistence, Codex-first ingestion, deterministic Playbook Intelligence, Unified Usage metrics, guarded file transactions, and login startup.
 nextStep: Validate the Codex adapter against a live local session, then complete the Claude adapter contract.
 blockers: []
 lastUpdated: 2026-07-21
-sourceOfTruth: commit 768e278 plus local build and fixture smoke
+sourceOfTruth: commit 9116e12 plus local build, fixture smoke, and launchctl readback
 healthScore: 84
 statusLabel: verified foundation
 
@@ -17,6 +17,7 @@ statusLabel: verified foundation
 - Codex parsing is implemented and fixture-validated; Claude Code detection is present but import is deliberately deferred until live Codex validation is complete.
 - Approved Playbook writes require an exact selected path, symlink resolution, precondition hashes, atomic writes, audit records, and guarded undo.
 - The local readiness gate runs the built XCTest bundle and requires a refreshed coverage artifact; no source or transcript data is sent by the default workflow.
+- `codes.relay.app` is registered as a user LaunchAgent and opens the current `Relay.app` bundle at macOS login; `scripts/uninstall-startup.sh` removes only that registration.
 
 ## Quality
 
@@ -28,6 +29,7 @@ statusLabel: verified foundation
 | Pre-CR readiness | pass | Commit hook completed with exit code 0 |
 | App bundle smoke | pass | `scripts/build-app.sh`, `plutil -lint`, and Mach-O inspection passed |
 | Helper smoke | pass | Isolated fixture import wrote 1 session to temporary SQLite |
+| Login startup | pass | `launchctl print gui/$(id -u)/codes.relay.app`, plist lint, and last exit code 0 |
 | Shellcheck | warning | `shellcheck` is unavailable on this host |
 | Dead-code scan | unknown | No Swift dead-code tool configured yet |
 
@@ -41,3 +43,4 @@ statusLabel: verified foundation
 - Added local JSON configuration for provider data roots and tmux/editor command templates.
 - Verified an isolated one-shot helper import without touching the default Relay database.
 - Verified the commit gate and committed the foundation as `768e278` on `feat/relay-foundation`.
+- Registered the visible app for login startup in `9116e12`; helper startup remains independently opt-in.
