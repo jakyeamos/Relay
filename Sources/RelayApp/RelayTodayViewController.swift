@@ -8,6 +8,7 @@ final class RelayTodayViewController: NSViewController, NSSearchFieldDelegate {
     private let sessionStack = NSStackView()
     private let scrollView = NSScrollView()
     private var lastRenderedQuery: String?
+    private var dataChangeObserver: NSObjectProtocol?
     private let emptyState = RelayEmptyStateView(
         title: "No sessions yet",
         message: "Start Codex and Relay will surface the session here automatically."
@@ -72,20 +73,27 @@ final class RelayTodayViewController: NSViewController, NSSearchFieldDelegate {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshFromNotification), name: .relayDataDidChange, object: nil)
+        dataChangeObserver = NotificationCenter.default.addObserver(
+            forName: .relayDataDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.refresh()
+            }
+        }
         refresh()
     }
 
     override func viewWillDisappear() {
         super.viewWillDisappear()
-        NotificationCenter.default.removeObserver(self, name: .relayDataDidChange, object: nil)
+        if let dataChangeObserver {
+            NotificationCenter.default.removeObserver(dataChangeObserver)
+            self.dataChangeObserver = nil
+        }
     }
 
     func controlTextDidChange(_ obj: Notification) {
-        refresh()
-    }
-
-    @objc private func refreshFromNotification() {
         refresh()
     }
 
