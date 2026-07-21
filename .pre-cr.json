@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "testCommand": "./scripts/pre-cr-test.sh",
+  "coveragePaths": ["coverage/lcov.info"],
+  "coverageFormat": "lcov",
+  "qualityAdapters": [],
+  "threshold": 0,
+  "checks": {
+    "coverage": false,
+    "security": true,
+    "checklist": true
+  }
+}

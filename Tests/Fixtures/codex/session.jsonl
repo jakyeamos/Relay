@@ -1,0 +1,2 @@
+{"timestamp":"2026-07-21T18:00:00Z","type":"user_message","role":"user","cwd":"/tmp/relay-fixture","text":"Use pnpm and run tests before completion"}
+{"timestamp":"2026-07-21T18:00:03Z","type":"assistant_message","role":"assistant","text":"I will inspect the project and verify the result."}
