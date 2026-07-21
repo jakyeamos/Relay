@@ -10,7 +10,7 @@ public struct GitContextResolver {
 
         let directory = URL(fileURLWithPath: workingDirectory).standardizedFileURL.path
         let repositoryPath = runGit(arguments: ["-C", directory, "rev-parse", "--show-toplevel"])
-        let worktreePath = runGit(arguments: ["-C", directory, "rev-parse", "--show-toplevel"])
+        let worktreePath = repositoryPath
         let branch = runGit(arguments: ["-C", directory, "branch", "--show-current"])
         let commit = runGit(arguments: ["-C", directory, "rev-parse", "HEAD"])
 

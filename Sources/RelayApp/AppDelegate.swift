@@ -18,7 +18,6 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
             windowController?.showWindow(nil)
             configureMenu()
             monitor.start()
-            _ = monitor.runOnce()
             NSApp.activate(ignoringOtherApps: true)
         } catch {
             let alert = NSAlert()

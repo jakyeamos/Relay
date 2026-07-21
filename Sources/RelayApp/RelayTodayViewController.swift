@@ -7,6 +7,7 @@ final class RelayTodayViewController: NSViewController, NSSearchFieldDelegate {
     private let searchField = NSSearchField()
     private let sessionStack = NSStackView()
     private let scrollView = NSScrollView()
+    private var lastRenderedQuery: String?
     private let emptyState = RelayEmptyStateView(
         title: "No sessions yet",
         message: "Start Codex and Relay will surface the session here automatically."
@@ -43,14 +44,16 @@ final class RelayTodayViewController: NSViewController, NSSearchFieldDelegate {
         sessionStack.spacing = 10
         sessionStack.translatesAutoresizingMaskIntoConstraints = false
         let document = NSView()
+        document.translatesAutoresizingMaskIntoConstraints = false
         document.addSubview(sessionStack)
+        scrollView.documentView = document
         NSLayoutConstraint.activate([
+            document.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
             sessionStack.leadingAnchor.constraint(equalTo: document.leadingAnchor),
             sessionStack.trailingAnchor.constraint(equalTo: document.trailingAnchor),
             sessionStack.topAnchor.constraint(equalTo: document.topAnchor),
             sessionStack.bottomAnchor.constraint(equalTo: document.bottomAnchor)
         ])
-        scrollView.documentView = document
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -87,8 +90,13 @@ final class RelayTodayViewController: NSViewController, NSSearchFieldDelegate {
     }
 
     @objc private func refreshNow() {
-        _ = monitor.runOnce()
-        refresh()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            _ = self.monitor.runOnce()
+            DispatchQueue.main.async {
+                self.refresh()
+            }
+        }
     }
 
     private func refresh() {
@@ -97,20 +105,29 @@ final class RelayTodayViewController: NSViewController, NSSearchFieldDelegate {
             guard let self else { return }
             let sessions = (try? self.store.sessions(search: query)) ?? []
             DispatchQueue.main.async {
-                self.render(sessions: sessions)
+                self.render(sessions: sessions, query: query)
             }
         }
     }
 
-    private func render(sessions: [Session]) {
+    private func render(sessions: [Session], query: String) {
+        let shouldScrollToTop = lastRenderedQuery != query || sessionStack.arrangedSubviews.isEmpty
         sessionStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        lastRenderedQuery = query
         guard !sessions.isEmpty else {
             sessionStack.addArrangedSubview(emptyState)
             return
         }
         for session in sessions {
-            sessionStack.addArrangedSubview(RelaySessionRow(session: session))
+            let row = RelaySessionRow(session: session)
+            sessionStack.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: sessionStack.widthAnchor).isActive = true
         }
+        guard shouldScrollToTop else { return }
+        view.layoutSubtreeIfNeeded()
+        let topOffset = max(0, sessionStack.bounds.height - scrollView.contentView.bounds.height)
+        scrollView.contentView.scroll(to: NSPoint(x: 0, y: topOffset))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 }
 
@@ -120,6 +137,7 @@ final class RelaySessionRow: NSView {
     init(session: Session) {
         self.session = session
         super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
         let card = relayCard()
         card.translatesAutoresizingMaskIntoConstraints = false
         addSubview(card)

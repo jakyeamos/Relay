@@ -24,7 +24,7 @@ swift run RelayHelper --once
 swift run RelayHelper
 ```
 
-The Codex adapter reads `~/.codex/sessions` by default. The Claude Code adapter is intentionally health-only until the Codex contract is validated against fixtures and live local data.
+The Codex adapter reads `~/.codex/sessions` by default. On its first scan it imports the 25 most recently modified sessions from the last 30 days and bounds each large source file to a 2 MB prefix/tail sample; later scans only revisit files modified since the previous pass. This keeps a multi-gigabyte local history from blocking startup while preserving recent work. The Claude Code adapter is intentionally health-only until the Codex contract is validated against fixtures and live local data.
 
 Optional configuration lives at `~/Library/Application Support/Relay/config.json`:
 

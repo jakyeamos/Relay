@@ -3,6 +3,9 @@ import Foundation
 public struct CodexAdapter: ProviderAdapter {
     public let provider: ProviderID = .codex
     public let sessionsRoot: URL
+    public let initialLookback: TimeInterval
+    public let initialSessionLimit: Int
+    public let maxFileBytes: Int
     private let fileManager: FileManager
     private let contextResolver: GitContextResolver
     private let artifactScanner: ContextArtifactScanner
@@ -10,10 +13,16 @@ public struct CodexAdapter: ProviderAdapter {
     public init(
         sessionsRoot: URL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".codex/sessions", isDirectory: true),
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        initialLookback: TimeInterval = 30 * 86_400,
+        initialSessionLimit: Int = 25,
+        maxFileBytes: Int = 2_000_000
     ) {
         self.sessionsRoot = sessionsRoot
         self.fileManager = fileManager
+        self.initialLookback = initialLookback
+        self.initialSessionLimit = initialSessionLimit
+        self.maxFileBytes = maxFileBytes
         self.contextResolver = GitContextResolver()
         self.artifactScanner = ContextArtifactScanner(fileManager: fileManager)
     }
@@ -58,18 +67,31 @@ public struct CodexAdapter: ProviderAdapter {
             return []
         }
 
-        var imports: [ImportedSession] = []
+        var candidates: [(url: URL, modifiedAt: Date)] = []
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl" else { continue }
             let values = try url.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey])
             guard values.isRegularFile == true else { continue }
             guard let modifiedAt = values.contentModificationDate else { continue }
             if let since, modifiedAt <= since { continue }
-            if let imported = try CodexSessionParser(fileManager: fileManager).parse(fileURL: url, modifiedAt: modifiedAt, adapter: self) {
-                imports.append(imported)
-            }
+            candidates.append((url, modifiedAt))
         }
-        return imports.sorted { $0.session.lastActivityAt < $1.session.lastActivityAt }
+
+        let selected: [(url: URL, modifiedAt: Date)]
+        if since == nil {
+            let cutoff = Date().addingTimeInterval(-initialLookback)
+            selected = Array(candidates
+                .filter { $0.modifiedAt >= cutoff }
+                .sorted { $0.modifiedAt > $1.modifiedAt }
+                .prefix(initialSessionLimit))
+        } else {
+            selected = candidates.sorted { $0.modifiedAt < $1.modifiedAt }
+        }
+
+        let parser = CodexSessionParser(fileManager: fileManager, maxFileBytes: maxFileBytes)
+        return selected.compactMap { candidate in
+            try? parser.parse(fileURL: candidate.url, modifiedAt: candidate.modifiedAt, adapter: self)
+        }
     }
 
     public func inferStatus(for session: Session) -> SessionStatusEvidence {
@@ -149,14 +171,20 @@ public struct ClaudeCodeAdapter: ProviderAdapter {
 }
 
 public struct CodexSessionParser {
-    public init(fileManager: FileManager = .default) {}
+    private let fileManager: FileManager
+    private let maxFileBytes: Int
+
+    public init(fileManager: FileManager = .default, maxFileBytes: Int = 2_000_000) {
+        self.fileManager = fileManager
+        self.maxFileBytes = maxFileBytes
+    }
 
     public func parse(
         fileURL: URL,
         modifiedAt: Date,
         adapter: CodexAdapter
     ) throws -> ImportedSession? {
-        let contents = try String(contentsOf: fileURL, encoding: .utf8)
+        let contents = try readContents(fileURL: fileURL)
         let fallbackDate = modifiedAt
         let sessionID = fileURL.deletingPathExtension().lastPathComponent
         var events: [SessionEvent] = []
@@ -169,14 +197,18 @@ public struct CodexSessionParser {
                 continue
             }
 
-            let timestamp = DateParser.date(from: value(in: dictionary, keys: ["timestamp", "created_at", "createdAt"])) ?? fallbackDate
-            let type = value(in: dictionary, keys: ["type", "event_type", "eventType", "kind"]) ?? "event"
-            let role = value(in: dictionary, keys: ["role", "author", "source"])
-            let text = textValue(in: dictionary)
-            let eventID = value(in: dictionary, keys: ["id", "event_id", "eventId"]) ?? "\(sessionID)-\(index)"
+            let payload = dictionary["payload"] as? [String: Any] ?? [:]
+            let eventDictionary = dictionary.merging(payload) { _, payloadValue in payloadValue }
+            let timestamp = DateParser.date(from: value(in: dictionary, keys: ["timestamp", "created_at", "createdAt"]))
+                ?? DateParser.date(from: value(in: payload, keys: ["timestamp", "created_at", "createdAt"]))
+                ?? fallbackDate
+            let type = value(in: eventDictionary, keys: ["type", "event_type", "eventType", "kind"]) ?? "event"
+            let role = value(in: eventDictionary, keys: ["role", "author", "source"])
+            let text = textValue(in: eventDictionary)
+            let eventID = value(in: eventDictionary, keys: ["id", "event_id", "eventId", "turn_id"]) ?? "\(sessionID)-\(index)"
 
             if workingDirectory == nil {
-                workingDirectory = pathValue(in: dictionary, keys: ["cwd", "working_directory", "workingDirectory", "workdir"])
+                workingDirectory = pathValue(in: eventDictionary, keys: ["cwd", "working_directory", "workingDirectory", "workdir"])
             }
             if title == nil, role?.lowercased() == "user", !text.isEmpty {
                 title = text.split(separator: "\n", maxSplits: 1).first.map(String.init)
@@ -236,6 +268,25 @@ public struct CodexSessionParser {
             evidence: statusEvidence
         )
         return ImportedSession(session: session, transitions: [transition], sourceModifiedAt: modifiedAt)
+    }
+
+    private func readContents(fileURL: URL) throws -> String {
+        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+        let fileSize = (attributes[.size] as? NSNumber)?.intValue ?? 0
+        guard fileSize > maxFileBytes else {
+            return try String(contentsOf: fileURL, encoding: .utf8)
+        }
+
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+        let prefixLimit = min(64 * 1024, max(maxFileBytes / 4, 1))
+        try handle.seek(toOffset: 0)
+        let prefix = try handle.read(upToCount: prefixLimit) ?? Data()
+        let suffixLimit = max(maxFileBytes - prefix.count - 1, 1)
+        let suffixOffset = UInt64(max(fileSize - suffixLimit, 0))
+        try handle.seek(toOffset: suffixOffset)
+        let suffix = try handle.readToEnd() ?? Data()
+        return String(decoding: prefix + Data("\n".utf8) + suffix, as: UTF8.self)
     }
 
     private func value(in dictionary: [String: Any], keys: [String]) -> String? {

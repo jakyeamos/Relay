@@ -26,6 +26,24 @@ final class RelayCoreTests: XCTestCase {
         XCTAssertEqual(imported.session.status, .running)
     }
 
+    func testCodexParserReadsNestedPayloadFields() throws {
+        let root = try temporaryDirectory()
+        let file = root.appendingPathComponent("nested.jsonl")
+        let content = """
+        {"timestamp":"2026-07-21T12:00:00Z","type":"session_meta","payload":{"cwd":"/tmp/nested-project","session_id":"nested","type":"session_meta"}}
+        {"timestamp":"2026-07-21T12:00:01Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Use pnpm for this project"}]}}
+        {"timestamp":"2026-07-21T12:00:02Z","type":"event_msg","payload":{"type":"task_complete","message":"Finished"}}
+        """
+        try content.write(to: file, atomically: true, encoding: .utf8)
+
+        let adapter = CodexAdapter(sessionsRoot: root)
+        let imported = try XCTUnwrap(CodexSessionParser().parse(fileURL: file, modifiedAt: Date(), adapter: adapter))
+
+        XCTAssertEqual(imported.session.context.workingDirectory, "/tmp/nested-project")
+        XCTAssertEqual(imported.session.title, "Use pnpm for this project")
+        XCTAssertEqual(imported.session.status, .completed)
+    }
+
     func testStatusInferencePrefersApprovalAndFailureEvidence() {
         let now = Date()
         let approval = SessionEvent(
@@ -43,6 +61,28 @@ final class RelayCoreTests: XCTestCase {
             text: "Command failed"
         )
         XCTAssertEqual(StatusInference.infer(events: [failure], now: now).status, .failed)
+    }
+
+    func testCodexAdapterBoundsInitialHistoryToRecentFiles() throws {
+        let root = try temporaryDirectory()
+        let older = root.appendingPathComponent("older.jsonl")
+        let newer = root.appendingPathComponent("newer.jsonl")
+        let content = "{\"timestamp\":\"2026-07-21T12:00:00Z\",\"type\":\"user_message\",\"role\":\"user\",\"cwd\":\"/tmp\",\"text\":\"session\"}\n"
+        try content.write(to: older, atomically: true, encoding: .utf8)
+        try content.write(to: newer, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-3_600)], ofItemAtPath: older.path)
+        try FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: newer.path)
+
+        let adapter = CodexAdapter(
+            sessionsRoot: root,
+            initialLookback: 86_400,
+            initialSessionLimit: 1
+        )
+        let imported = try adapter.importSessions()
+
+        XCTAssertEqual(imported.count, 1)
+        let importedPath = imported.first.map { URL(fileURLWithPath: $0.session.sourceReference).lastPathComponent }
+        XCTAssertEqual(importedPath, newer.lastPathComponent)
     }
 
     func testPlaybookAnalysisSeparatesLatestScanAndPendingCandidates() {
