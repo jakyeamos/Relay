@@ -35,6 +35,7 @@ public final class MonitoringCoordinator: @unchecked Sendable {
         var imported = 0
         var available: [ProviderID] = []
         var failures: [String] = []
+        var importedSessions: [Session] = []
 
         for adapter in adapters {
             let health = adapter.health()
@@ -43,6 +44,7 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                 let sessions = try adapter.importSessions(since: lastScan)
                 for session in sessions {
                     try store.upsert(imported: session)
+                    importedSessions.append(session.session)
                     imported += 1
                 }
                 for metric in adapter.usageSnapshot() {
@@ -51,6 +53,12 @@ public final class MonitoringCoordinator: @unchecked Sendable {
             } catch {
                 failures.append("\(adapter.provider.rawValue): \(error.localizedDescription)")
             }
+        }
+
+        do {
+            try store.ensureWorkspaces(for: importedSessions)
+        } catch {
+            failures.append("workspaces: \(error.localizedDescription)")
         }
 
         lastScan = Date()

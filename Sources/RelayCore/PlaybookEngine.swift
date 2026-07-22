@@ -12,8 +12,8 @@ public struct RedactionResult: Sendable, Equatable {
     }
 }
 
-public struct PlaybookEngine {
-    private struct Rule {
+public struct PlaybookEngine: Sendable {
+    private struct Rule: Sendable {
         let lane: IntelligenceLane
         let key: String
         let title: String
@@ -87,6 +87,7 @@ public struct PlaybookEngine {
             let confidence = min(0.95, distinctSessions >= 2 ? 0.8 + min(0.15, Double(distinctSessions - 2) * 0.05) : 0.65)
             let latestScan = matchingEvents.contains { $0.timestamp >= latestCutoff }
             candidates.append(IntelligenceCandidate(
+                id: "candidate-\(ContentHasher.hash(string: rule.key))",
                 lane: rule.lane,
                 title: rule.title,
                 rationale: rule.rationale,

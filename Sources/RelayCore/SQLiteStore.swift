@@ -121,36 +121,110 @@ public final class SQLiteStore: @unchecked Sendable {
     }
 
     public func sessions(search searchTerm: String? = nil) throws -> [Session] {
+        try sessions(query: SessionQuery(text: searchTerm))
+    }
+
+    public func sessions(query request: SessionQuery) throws -> [Session] {
         lock.lock()
         defer { lock.unlock() }
-        let normalizedQuery = searchTerm?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sql: String
-        let bindings: [SQLiteBinding]
-        if let normalizedQuery, !normalizedQuery.isEmpty {
-            sql = """
-            SELECT id, provider, title, status, confidence, status_source, status_explanation,
-                   started_at, last_activity_at, working_directory, repository_path, worktree_path,
-                   branch, commit_hash, transcript, source_reference, artifacts_json
-            FROM sessions
-            WHERE title LIKE ? OR provider LIKE ? OR branch LIKE ? OR repository_path LIKE ? OR transcript LIKE ?
-            ORDER BY last_activity_at DESC
-            LIMIT 500
-            """
-            let pattern = "%\(normalizedQuery)%"
-            bindings = Array(repeating: .text(pattern), count: 5)
-        } else {
-            sql = """
-            SELECT id, provider, title, status, confidence, status_source, status_explanation,
-                   started_at, last_activity_at, working_directory, repository_path, worktree_path,
-                   branch, commit_hash, transcript, source_reference, artifacts_json
-            FROM sessions ORDER BY last_activity_at DESC LIMIT 500
-            """
-            bindings = []
+        var clauses: [String] = []
+        var bindings: [SQLiteBinding] = []
+
+        if let normalizedQuery = request.text?.trimmingCharacters(in: .whitespacesAndNewlines), !normalizedQuery.isEmpty {
+            let tokens = normalizedQuery.split { $0.isWhitespace }.map(String.init)
+            for token in tokens {
+                clauses.append("(title LIKE ? OR provider LIKE ? OR branch LIKE ? OR repository_path LIKE ? OR worktree_path LIKE ? OR working_directory LIKE ? OR transcript LIKE ?)")
+                let pattern = "%\(token)%"
+                bindings.append(contentsOf: Array(repeating: .text(pattern), count: 7))
+            }
+        }
+        if let provider = request.provider {
+            clauses.append("provider = ?")
+            bindings.append(.text(provider.rawValue))
+        }
+        let statuses = request.statuses.sorted { $0.rawValue < $1.rawValue }
+        if !statuses.isEmpty {
+            clauses.append("status IN (\(Array(repeating: "?", count: statuses.count).joined(separator: ", ")))")
+            bindings.append(contentsOf: statuses.map { .text($0.rawValue) })
         }
 
-        return try query(sql, bindings: bindings) { statement in
+        let order: String
+        switch request.sortOrder {
+        case .recent: order = "last_activity_at DESC"
+        case .oldest: order = "last_activity_at ASC"
+        case .title: order = "title COLLATE NOCASE ASC, last_activity_at DESC"
+        }
+        let whereClause = clauses.isEmpty ? "" : "WHERE \(clauses.joined(separator: " AND "))"
+        let limitClause = request.workspaceID == nil ? "LIMIT ?" : ""
+        let sql = """
+        SELECT id, provider, title, status, confidence, status_source, status_explanation,
+               started_at, last_activity_at, working_directory, repository_path, worktree_path,
+               branch, commit_hash, transcript, source_reference, artifacts_json
+        FROM sessions
+        \(whereClause)
+        ORDER BY \(order)
+        \(limitClause)
+        """
+        if request.workspaceID == nil {
+            bindings.append(.integer(Int64(request.limit)))
+        }
+        let loaded = try query(sql, bindings: bindings) { statement in
             try session(from: statement)
         }
+        let scoped = loaded.filter { WorkspaceResolver().matches($0, workspaceID: request.workspaceID) }
+        return request.workspaceID == nil ? scoped : Array(scoped.prefix(request.limit))
+    }
+
+    public func workspaces(includeHidden: Bool = false) throws -> [RelayWorkspace] {
+        lock.lock()
+        defer { lock.unlock() }
+        let whereClause = includeHidden ? "" : "WHERE is_hidden = 0"
+        return try query(
+            "SELECT id, name, repository_path, fallback_directory, is_pinned, sort_order, created_at, last_opened_at, is_hidden FROM workspaces \(whereClause) ORDER BY is_pinned DESC, sort_order ASC, name COLLATE NOCASE ASC",
+            bindings: []
+        ) { statement in
+            RelayWorkspace(
+                id: columnText(statement, index: 0),
+                name: columnText(statement, index: 1) ?? "Untitled workspace",
+                canonicalRepositoryPath: columnText(statement, index: 2),
+                fallbackDirectory: columnText(statement, index: 3),
+                isPinned: sqlite3_column_int64(statement, 4) != 0,
+                sortOrder: Int(sqlite3_column_int64(statement, 5)),
+                createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 6)),
+                lastOpenedAt: sqlite3_column_type(statement, 7) == SQLITE_NULL ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 7)),
+                isHidden: sqlite3_column_int64(statement, 8) != 0
+            )
+        }
+    }
+
+    public func saveWorkspace(_ workspace: RelayWorkspace) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        try saveWorkspace(workspace, mode: .replace)
+    }
+
+    public func ensureWorkspaces(for sessions: [Session], now: Date = Date()) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let resolver = WorkspaceResolver()
+        var discovered: [String: RelayWorkspace] = [:]
+        for session in sessions {
+            let workspace = resolver.workspace(for: session, now: now)
+            guard workspace.id != RelayWorkspace.unassignedID else { continue }
+            discovered[workspace.id] = workspace
+        }
+        for workspace in discovered.values {
+            try saveWorkspace(workspace, mode: .insertIfMissing)
+        }
+    }
+
+    public func touchWorkspace(id: String, at date: Date = Date()) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        try execute(
+            "UPDATE workspaces SET last_opened_at = ? WHERE id = ?",
+            bindings: [.double(date.timeIntervalSince1970), .text(id)]
+        )
     }
 
     public func saveUsage(_ metric: UsageMetric) throws {
@@ -274,6 +348,18 @@ public final class SQLiteStore: @unchecked Sendable {
                 updated_at REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS sessions_last_activity_idx ON sessions(last_activity_at DESC);
+            CREATE TABLE IF NOT EXISTS workspaces (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                repository_path TEXT,
+                fallback_directory TEXT,
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL,
+                last_opened_at REAL,
+                is_hidden INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS workspaces_order_idx ON workspaces(is_pinned DESC, sort_order ASC, name COLLATE NOCASE ASC);
             CREATE TABLE IF NOT EXISTS session_events (
                 id TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -327,6 +413,44 @@ public final class SQLiteStore: @unchecked Sendable {
                 detail TEXT NOT NULL
             );
             """
+        )
+    }
+
+    private enum WorkspaceSaveMode {
+        case replace
+        case insertIfMissing
+    }
+
+    private func saveWorkspace(_ workspace: RelayWorkspace, mode: WorkspaceSaveMode) throws {
+        let conflictClause: String
+        switch mode {
+        case .replace:
+            conflictClause = """
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                repository_path = excluded.repository_path,
+                fallback_directory = excluded.fallback_directory,
+                is_pinned = excluded.is_pinned,
+                sort_order = excluded.sort_order,
+                created_at = excluded.created_at,
+                last_opened_at = excluded.last_opened_at,
+                is_hidden = excluded.is_hidden
+            """
+        case .insertIfMissing:
+            conflictClause = "ON CONFLICT(id) DO NOTHING"
+        }
+        try execute(
+            """
+            INSERT INTO workspaces (id, name, repository_path, fallback_directory, is_pinned, sort_order, created_at, last_opened_at, is_hidden)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            \(conflictClause)
+            """,
+            bindings: [
+                .text(workspace.id), .text(workspace.name), .text(workspace.canonicalRepositoryPath),
+                .text(workspace.fallbackDirectory), .integer(workspace.isPinned ? 1 : 0),
+                .integer(Int64(workspace.sortOrder)), .double(workspace.createdAt.timeIntervalSince1970),
+                .double(workspace.lastOpenedAt?.timeIntervalSince1970), .integer(workspace.isHidden ? 1 : 0)
+            ]
         )
     }
 

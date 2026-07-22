@@ -234,6 +234,145 @@ final class RelayCoreTests: XCTestCase {
         XCTAssertEqual(try store.usageMetrics().first?.label, "Active sessions")
     }
 
+    func testWorkspaceResolverGroupsRepositoryWorktreeFallbackAndUnassignedSessions() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        var repositorySession = makeSession(id: "repository", eventText: "Use pnpm", eventDate: now)
+        repositorySession.context = SessionContext(
+            workingDirectory: "/tmp/worktree-a",
+            repositoryPath: "/tmp/relay-repository",
+            worktreePath: "/tmp/worktree-a",
+            branch: "dev",
+            commit: "abc123"
+        )
+        var secondWorktree = makeSession(id: "second", eventText: "Run tests", eventDate: now.addingTimeInterval(10))
+        secondWorktree.context = SessionContext(
+            workingDirectory: "/tmp/worktree-b",
+            repositoryPath: "/tmp/relay-repository",
+            worktreePath: "/tmp/worktree-b"
+        )
+        var fallbackSession = makeSession(id: "fallback", eventText: "Fallback", eventDate: now.addingTimeInterval(20))
+        fallbackSession.context = SessionContext(worktreePath: "/tmp/standalone-worktree")
+        var unassignedSession = makeSession(id: "unassigned", eventText: "No path", eventDate: now.addingTimeInterval(30))
+        unassignedSession.context = SessionContext()
+
+        let resolver = WorkspaceResolver()
+        let summaries = resolver.summaries(
+            sessions: [repositorySession, secondWorktree, fallbackSession, unassignedSession],
+            now: now
+        )
+
+        let repositoryID = resolver.workspaceID(for: repositorySession)
+        let repositorySummary = summaries.first { $0.id == repositoryID }
+        XCTAssertEqual(repositorySummary?.sessionCount, 2)
+        XCTAssertEqual(repositorySummary?.associatedWorktrees, ["/tmp/worktree-a", "/tmp/worktree-b"])
+        XCTAssertEqual(resolver.workspaceID(for: fallbackSession), RelayWorkspace.stableID(for: "/tmp/standalone-worktree"))
+        XCTAssertTrue(summaries.contains { $0.id == RelayWorkspace.unassignedID && $0.sessionCount == 1 })
+    }
+
+    func testWorkspacePersistencePreservesRenamePinOrderAndExistingDatabaseLoad() throws {
+        let root = try temporaryDirectory()
+        let databaseURL = root.appendingPathComponent("relay.sqlite")
+        let session = makeSession(id: "workspace-session", eventText: "workspace", eventDate: Date())
+        var contextualSession = session
+        contextualSession.context = SessionContext(repositoryPath: "/tmp/relay-persisted")
+
+        do {
+            let store = try SQLiteStore(url: databaseURL)
+            try store.upsert(imported: ImportedSession(session: contextualSession, sourceModifiedAt: Date()))
+            try store.ensureWorkspaces(for: [contextualSession])
+            var workspace = try XCTUnwrap(store.workspaces().first)
+            workspace.name = "Pinned Relay"
+            workspace.isPinned = true
+            workspace.sortOrder = 7
+            workspace.isHidden = false
+            try store.saveWorkspace(workspace)
+        }
+
+        let reopened = try SQLiteStore(url: databaseURL)
+        let persisted = try XCTUnwrap(reopened.workspaces().first)
+        XCTAssertEqual(persisted.name, "Pinned Relay")
+        XCTAssertTrue(persisted.isPinned)
+        XCTAssertEqual(persisted.sortOrder, 7)
+        XCTAssertEqual(try reopened.sessions().map(\.id), ["workspace-session"])
+    }
+
+    func testSessionQueryScopesWorkspaceProviderStatusAndText() throws {
+        let root = try temporaryDirectory()
+        let store = try SQLiteStore(url: root.appendingPathComponent("relay.sqlite"))
+        var codex = makeSession(id: "codex", eventText: "Find the repository build", eventDate: Date())
+        codex.context = SessionContext(repositoryPath: "/tmp/query-repository")
+        var claude = makeSession(id: "claude", eventText: "Find a different provider", eventDate: Date().addingTimeInterval(-10))
+        claude.context = SessionContext(repositoryPath: "/tmp/query-other")
+        claude.status = .waiting
+        try store.upsert(imported: ImportedSession(session: codex, sourceModifiedAt: Date()))
+        try store.upsert(imported: ImportedSession(session: claude, sourceModifiedAt: Date()))
+
+        let resolver = WorkspaceResolver()
+        let scoped = try store.sessions(query: SessionQuery(
+            workspaceID: resolver.workspaceID(for: codex),
+            text: "build",
+            provider: .codex,
+            statuses: [.running],
+            sortOrder: .recent
+        ))
+        XCTAssertEqual(scoped.map(\.id), ["codex"])
+        XCTAssertEqual(try store.sessions(query: SessionQuery(text: "repository build")).map(\.id), ["codex"])
+        XCTAssertTrue(try store.sessions(query: SessionQuery(provider: .claudeCode)).isEmpty)
+        XCTAssertEqual(try store.sessions(query: SessionQuery(statuses: [.waiting])).map(\.id), ["claude"])
+    }
+
+    func testWorkspaceScopedQueryAppliesLimitAfterGrouping() throws {
+        let root = try temporaryDirectory()
+        let store = try SQLiteStore(url: root.appendingPathComponent("relay.sqlite"))
+        var older = makeSession(id: "older", eventText: "older", eventDate: Date(timeIntervalSince1970: 100))
+        older.context = SessionContext(repositoryPath: "/tmp/limited-workspace")
+        var newer = makeSession(id: "newer", eventText: "newer", eventDate: Date(timeIntervalSince1970: 200))
+        newer.context = SessionContext(repositoryPath: "/tmp/other-workspace")
+        try store.upsert(imported: ImportedSession(session: older, sourceModifiedAt: older.lastActivityAt))
+        try store.upsert(imported: ImportedSession(session: newer, sourceModifiedAt: newer.lastActivityAt))
+
+        let workspaceID = WorkspaceResolver().workspaceID(for: older)
+        let scoped = try store.sessions(query: SessionQuery(workspaceID: workspaceID, limit: 1))
+        XCTAssertEqual(scoped.map(\.id), ["older"])
+    }
+
+    func testUsageScopeAndActivitySeriesRemainLocalAndExplicit() {
+        let now = Date(timeIntervalSince1970: 86_400 * 10 + 12 * 3_600)
+        var current = makeSession(id: "current", eventText: "current", eventDate: now.addingTimeInterval(-1_800))
+        current.context = SessionContext(repositoryPath: "/tmp/usage-repository")
+        current.status = .waiting
+        var other = makeSession(id: "other", eventText: "other", eventDate: now.addingTimeInterval(-1_200))
+        other.context = SessionContext(repositoryPath: "/tmp/other-repository")
+        let service = UsageService()
+        let filtered = service.filter(
+            sessions: [current, other],
+            scope: UsageScope(workspaceID: WorkspaceResolver().workspaceID(for: current), timeRange: .sevenDays),
+            now: now
+        )
+        XCTAssertEqual(filtered.map(\.id), ["current"])
+        XCTAssertEqual(service.localMetrics(sessions: filtered, now: now).first { $0.label == "Needs attention" }?.value, 1)
+        let series = service.activitySeries(sessions: filtered, now: now, days: 7)
+        XCTAssertEqual(series.count, 7)
+        XCTAssertEqual(series.last?.sessionsStarted, 1)
+        XCTAssertEqual(service.localMetrics(sessions: filtered).first { $0.label == "Provider quota" }?.precision, .unavailable)
+    }
+
+    func testCandidateLifecycleRoundTripsWithStableCandidateIdentity() throws {
+        let now = Date()
+        let session = makeSession(id: "candidate-session", eventText: "Use pnpm, not npm", eventDate: now)
+        let engine = PlaybookEngine()
+        let first = try XCTUnwrap(engine.analyze(sessions: [session], now: now).pendingCandidates.first)
+        let second = try XCTUnwrap(engine.analyze(sessions: [session], now: now).pendingCandidates.first)
+        XCTAssertEqual(first.id, second.id)
+
+        let root = try temporaryDirectory()
+        let store = try SQLiteStore(url: root.appendingPathComponent("relay.sqlite"))
+        var snoozed = first
+        snoozed.lifecycle = .snoozed
+        try store.saveCandidate(snoozed)
+        XCTAssertEqual(try store.candidates().first?.lifecycle, .snoozed)
+    }
+
     func testUsageServiceMarksProviderQuotaUnavailable() {
         let metrics = UsageService().localMetrics(sessions: [])
         let quota = metrics.first { $0.label == "Provider quota" }
