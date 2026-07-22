@@ -49,6 +49,10 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
         windowController?.show(destination: .usage)
     }
 
+    @objc private func toggleCommandPalette() {
+        windowController?.toggleCommandPalette()
+    }
+
     private func configureMenu() {
         let mainMenu = NSMenu()
         let appMenuItem = NSMenuItem()
@@ -67,6 +71,8 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
         playbook.keyEquivalentModifierMask = [.command]
         let usage = viewMenu.addItem(withTitle: "Usage", action: #selector(showUsage), keyEquivalent: "3")
         usage.keyEquivalentModifierMask = [.command]
+        let palette = viewMenu.addItem(withTitle: "Command Palette", action: #selector(toggleCommandPalette), keyEquivalent: "k")
+        palette.keyEquivalentModifierMask = [.command]
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
         NSApp.mainMenu = mainMenu

@@ -38,6 +38,24 @@ final class RelayActionService {
         }
     }
 
+    func reveal(path: String) throws {
+        guard FileManager.default.fileExists(atPath: path) else {
+            throw RelayActionError.commandFailed("The context path no longer exists: \(path)")
+        }
+        let url = URL(fileURLWithPath: path)
+        let container = url.hasDirectoryPath ? path : url.deletingLastPathComponent().path
+        guard NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: container) else {
+            throw RelayActionError.commandFailed("Finder could not reveal \(path).")
+        }
+    }
+
+    func openTerminal(path: String) throws {
+        guard FileManager.default.fileExists(atPath: path) else {
+            throw RelayActionError.commandFailed("The context path no longer exists: \(path)")
+        }
+        try openTerminal(command: "cd \(shellQuote(path))")
+    }
+
     private func openTerminal(command: String) throws {
         let escapedCommand = command.replacingOccurrences(of: "\"", with: "\\\"")
         let script = "tell application \"Terminal\" to do script \"\(escapedCommand)\""
