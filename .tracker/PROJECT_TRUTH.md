@@ -1,18 +1,20 @@
 # Relay Project Truth
 
-summary: Dogfood-verified native macOS Relay with bounded Codex ingestion, normalized session titles, nested event normalization, crash-safe monitor notifications, responsive Observe and Resume surfaces, deterministic Playbook Intelligence, Unified Usage metrics, guarded file transactions, and login startup.
-nextStep: Validate the Claude adapter against sanitized fixtures and live local data, then add the session detail/context inspector.
-blockers: []
+summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, and one-window AppKit navigation.
+nextStep: Commit the AppKit workbench slice, then rerun the release bundle and live launch checks; screenshot-level dogfood remains dependent on the desktop capture backend.
+blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream.]
 lastUpdated: 2026-07-21
-sourceOfTruth: commit b11c1e1 plus live Today verification, native release build, coverage, and Pre-CR readback
-healthScore: 90
-statusLabel: dogfood verified
+sourceOfTruth: commit 1a3f1b1 plus current worktree AppKit workbench implementation, tests, coverage, and Pre-CR readback
+healthScore: 92
+statusLabel: workbench implementation in progress; core verified
 
 ## Current State
 
 - The project is a new Swift Package at `/Users/jakyeamos/projects/relay`.
 - `RelayCore` contains normalized domain types, SQLite storage, provider adapters, status evidence, context discovery, Playbook analysis, usage metrics, monitoring, and guarded apply/undo transactions.
-- `RelayApp` contains the native AppKit Today, Playbook, and Usage surfaces.
+- `RelayApp` is being replaced with a single nested AppKit split-view workbench for Today, Playbook, and Usage; the replacement shell is currently in the worktree pending its own atomic commit.
+- Workspace resolution groups sessions by canonical repository, then worktree or working directory, with an explicit Unassigned bucket. Workspace records are additive, stable, renameable, pinnable, reorderable, hideable, and preserved across refreshes.
+- SQLite now supports workspace-scoped, provider/status-filtered, tokenized session queries and scoped Usage activity/freshness metrics without rewriting imported session records.
 - `RelayHelper` reuses the monitoring coordinator for one-shot or resident background ingestion.
 - Codex parsing is fixture- and live-validated. The first scan imports the 25 most recently modified sessions from the last 30 days, bounds each source file to a 2 MB prefix/tail sample, and later scans revisit only modified files. Claude Code detection is present but import remains deliberately deferred.
 - Session titles are normalized at parse, storage, and read time so legacy rows also display readable sentence-case labels without changing the original transcript.
@@ -27,8 +29,8 @@ statusLabel: dogfood verified
 | Check | Status | Evidence |
 |---|---|---|
 | Swift build | pass | `swift build -c release` compiled AppKit and helper products |
-| Tests | pass | `swift test` and the commit gate passed 12 behavior tests |
-| Coverage | pass | `coverage/lcov.info` loaded at 76% lines / 69% functions; changed-line coverage 97.3% |
+| Tests | pass | `swift test` and the commit gate passed 18 behavior tests |
+| Coverage | pass | `coverage/lcov.info` refreshed by `scripts/test-with-coverage.sh`; changed-line coverage remains gated by the repository check |
 | Pre-CR readiness | pass | Commit hook completed with exit code 0 |
 | App bundle smoke | pass | `scripts/build-app.sh`, `plutil -lint`, and Mach-O inspection passed |
 | Crash regression | pass | Translated report reproduced a background notification/main-actor race; rebuilt app stayed alive through a 12-second monitor interval |
@@ -45,6 +47,7 @@ statusLabel: dogfood verified
 - Added SQLite persistence, local usage metrics, deterministic Playbook candidates, and transaction safety.
 - Added AppKit navigation, Today session cards, Playbook preview/apply flow, Usage cards, helper executable, and launch-agent scaffolding.
 - Added local JSON configuration for provider data roots and tmux/editor command templates.
+- Added persistent repository workspaces, scoped/tokenized session queries, workspace-scoped Usage activity, and stable Playbook candidate lifecycle IDs in `1a3f1b1`.
 - Verified an isolated one-shot helper import without touching the default Relay database.
 - Verified the commit gate and committed the foundation as `768e278` on `feat/relay-foundation`.
 - Registered the visible app for login startup in `9116e12`; helper startup remains independently opt-in.
