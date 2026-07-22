@@ -1,12 +1,12 @@
 # Relay Project Truth
 
 summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, and one-window AppKit navigation.
-nextStep: Rerun final release, app-bundle, and live-launch checks against the committed workbench; screenshot-level dogfood remains dependent on the desktop capture backend.
+nextStep: Re-run screenshot/accessibility dogfood when the desktop capture backend is available; implementation and local verification are complete.
 blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream.]
 lastUpdated: 2026-07-21
-sourceOfTruth: commits 1a3f1b1 and 0e8274a plus current tests, coverage, and Pre-CR readback
-healthScore: 94
-statusLabel: workbench committed; final verification pending
+sourceOfTruth: commits 1a3f1b1, 0e8274a, and 0bb2307 plus final tests, release build, bundle validation, coverage, Pre-CR, and launch smoke
+healthScore: 95
+statusLabel: implementation complete; capture-limited dogfood
 
 ## Current State
 
@@ -29,11 +29,12 @@ statusLabel: workbench committed; final verification pending
 
 | Check | Status | Evidence |
 |---|---|---|
-| Swift build | pass | `swift build -c release` compiled AppKit and helper products |
-| Tests | pass | `swift test` and the commit gate passed 18 behavior tests |
+| Swift build | pass | Final `swift build -c release` compiled AppKit and helper products |
+| Tests | pass | Final `swift test` passed 18 behavior tests with 0 failures |
 | Coverage | pass | `coverage/lcov.info` refreshed by `scripts/test-with-coverage.sh`; changed-line coverage remains gated by the repository check |
 | Pre-CR readiness | pass | Commit hook completed with exit code 0 |
-| App bundle smoke | pass | `scripts/build-app.sh`, `plutil -lint`, and Mach-O inspection passed |
+| App bundle smoke | pass | Final `scripts/build-app.sh` completed; `Relay.app/Contents/Info.plist` linted successfully with macOS 13 minimum |
+| Live launch smoke | pass | Fresh `Relay.app` launched as `RelayApp` and stayed running for process-level inspection; terminated after the check |
 | Crash regression | pass | Translated report reproduced a background notification/main-actor race; rebuilt app stayed alive through a 12-second monitor interval |
 | Helper smoke | pass | Isolated live import wrote 25 real Codex sessions and 5,489 events to temporary SQLite in 8 seconds |
 | Login startup | pass | `launchctl print gui/$(id -u)/codes.relay.app`, plist lint, and last exit code 0 |
@@ -50,6 +51,7 @@ statusLabel: workbench committed; final verification pending
 - Added local JSON configuration for provider data roots and tmux/editor command templates.
 - Added persistent repository workspaces, scoped/tokenized session queries, workspace-scoped Usage activity, and stable Playbook candidate lifecycle IDs in `1a3f1b1`.
 - Replaced the page-swapping shell with the single-window Today/Playbook/Usage workbench, shared AppKit design tokens/components, contextual inspectors, keyboard routing, and guarded inline Playbook actions in `0e8274a`.
+- Re-ran final `swift test`, release build, app-bundle build, `Info.plist` validation, and process-level launch smoke; all passed on the committed workbench.
 - Verified an isolated one-shot helper import without touching the default Relay database.
 - Verified the commit gate and committed the foundation as `768e278` on `feat/relay-foundation`.
 - Registered the visible app for login startup in `9116e12`; helper startup remains independently opt-in.
