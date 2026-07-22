@@ -1,18 +1,19 @@
 # Relay Project Truth
 
 summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, and one-window AppKit navigation.
-nextStep: Commit the AppKit workbench slice, then rerun the release bundle and live launch checks; screenshot-level dogfood remains dependent on the desktop capture backend.
+nextStep: Rerun final release, app-bundle, and live-launch checks against the committed workbench; screenshot-level dogfood remains dependent on the desktop capture backend.
 blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream.]
 lastUpdated: 2026-07-21
-sourceOfTruth: commit 1a3f1b1 plus current worktree AppKit workbench implementation, tests, coverage, and Pre-CR readback
-healthScore: 92
-statusLabel: workbench implementation in progress; core verified
+sourceOfTruth: commits 1a3f1b1 and 0e8274a plus current tests, coverage, and Pre-CR readback
+healthScore: 94
+statusLabel: workbench committed; final verification pending
 
 ## Current State
 
 - The project is a new Swift Package at `/Users/jakyeamos/projects/relay`.
 - `RelayCore` contains normalized domain types, SQLite storage, provider adapters, status evidence, context discovery, Playbook analysis, usage metrics, monitoring, and guarded apply/undo transactions.
-- `RelayApp` is being replaced with a single nested AppKit split-view workbench for Today, Playbook, and Usage; the replacement shell is currently in the worktree pending its own atomic commit.
+- `RelayApp` contains a single nested AppKit split-view workbench for Today, Playbook, and Usage; the obsolete page-local controllers were removed after the replacement shell compiled and passed the core/app gates.
+- The workbench persists workspace/session selection, pane widths, inspector visibility, density, mode, sort, filters, and usage range. It uses a virtualized `NSTableView` center list, a context inspector, native semantic surfaces, and an in-window `Cmd-K` command palette.
 - Workspace resolution groups sessions by canonical repository, then worktree or working directory, with an explicit Unassigned bucket. Workspace records are additive, stable, renameable, pinnable, reorderable, hideable, and preserved across refreshes.
 - SQLite now supports workspace-scoped, provider/status-filtered, tokenized session queries and scoped Usage activity/freshness metrics without rewriting imported session records.
 - `RelayHelper` reuses the monitoring coordinator for one-shot or resident background ingestion.
@@ -48,6 +49,7 @@ statusLabel: workbench implementation in progress; core verified
 - Added AppKit navigation, Today session cards, Playbook preview/apply flow, Usage cards, helper executable, and launch-agent scaffolding.
 - Added local JSON configuration for provider data roots and tmux/editor command templates.
 - Added persistent repository workspaces, scoped/tokenized session queries, workspace-scoped Usage activity, and stable Playbook candidate lifecycle IDs in `1a3f1b1`.
+- Replaced the page-swapping shell with the single-window Today/Playbook/Usage workbench, shared AppKit design tokens/components, contextual inspectors, keyboard routing, and guarded inline Playbook actions in `0e8274a`.
 - Verified an isolated one-shot helper import without touching the default Relay database.
 - Verified the commit gate and committed the foundation as `768e278` on `feat/relay-foundation`.
 - Registered the visible app for login startup in `9116e12`; helper startup remains independently opt-in.
