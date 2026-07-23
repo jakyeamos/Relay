@@ -1,10 +1,10 @@
 # Relay Project Truth
 
 summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, one-window AppKit navigation, and an explicit native release gate.
-nextStep: Re-run `scripts/release-check.sh` with fresh human-reviewed capture and accessibility evidence when the desktop capture backend is available.
+nextStep: Keep the routed environment contract current with the weekly audit; rerun `scripts/release-check.sh` with fresh human-reviewed capture and accessibility evidence when the desktop capture backend is available.
 blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream; the native release gate remains blocked until a reviewed live evidence artifact is supplied.]
 lastUpdated: 2026-07-22
-sourceOfTruth: commits 1a3f1b1, 0e8274a, and 0bb2307 plus current Swift tests, release products, bundle validation, and scripts/release-check.sh
+sourceOfTruth: commit 47e4adb plus current Swift tests, coverage, release products, bundle validation, pre-CR output, and scripts/release-check.sh
 healthScore: 95
 statusLabel: implementation complete; capture-limited dogfood
 
@@ -23,6 +23,7 @@ statusLabel: implementation complete; capture-limited dogfood
 - Today observes monitor changes through a main-queue notification token and removes that token on disappearance, preventing AppKit main-actor access from the background monitoring queue.
 - Approved Playbook writes require an exact selected path, symlink resolution, precondition hashes, atomic writes, audit records, and guarded undo.
 - The local readiness gate runs the built XCTest bundle and requires a refreshed coverage artifact; no source or transcript data is sent by the default workflow.
+- The routed environment contract covers eight context packets, six canonical commands, target metadata, and secret-path checks; `scripts/check_environment_contract.py` is required by pre-CR.
 - `codes.relay.app` is registered as a user LaunchAgent and opens the current `Relay.app` bundle at macOS login; `scripts/uninstall-startup.sh` removes only that registration.
 
 ## Quality
@@ -32,6 +33,7 @@ statusLabel: implementation complete; capture-limited dogfood
 | Swift build | pass | Final `swift build -c release` compiled AppKit and helper products |
 | Tests | pass | Final `swift test` passed 18 behavior tests with 0 failures |
 | Coverage | pass | `coverage/lcov.info` refreshed by `scripts/test-with-coverage.sh`; changed-line coverage remains gated by the repository check |
+| Environment contract | pass | 8 packets, 6 commands, 0 secret-like tracked paths; checker and pre-CR adapter passed |
 | Pre-CR readiness | pass | Commit hook completed with exit code 0 |
 | App bundle smoke | pass | Final `scripts/build-app.sh` completed; `Relay.app/Contents/Info.plist` linted successfully with macOS 13 minimum |
 | Native release gate | blocked | `scripts/release-check.sh` passed tests/products/bundle checks and exited 2 because reviewed live capture/accessibility evidence is missing |
@@ -44,8 +46,6 @@ statusLabel: implementation complete; capture-limited dogfood
 
 ## Recent Progress
 
-- Added the Swift Package and SQLite system module.
-- Added the normalized Relay domain model and provider contract.
 - Added Codex JSONL parsing, status inference, Git context, and artifact discovery.
 - Added SQLite persistence, local usage metrics, deterministic Playbook candidates, and transaction safety.
 - Added AppKit navigation, Today session cards, Playbook preview/apply flow, Usage cards, helper executable, and launch-agent scaffolding.
@@ -61,3 +61,4 @@ statusLabel: implementation complete; capture-limited dogfood
 - Added deterministic title cleanup for Markdown headings, metadata tags, working-directory suffixes, boilerplate, and long prompt fragments; live Today now shows labels such as `Recommended plugins`, `Environment context`, and `AGENTS.md instructions` in `b11c1e1`.
 - Added the minimal agent operating contract and context index in `b3ed825`; future work now has a bounded default context route and explicit safety invariants.
 - Added the native release gate and readiness contract; current tests, release products, bundle assembly, and plist validation pass while live capture/accessibility evidence remains explicitly blocked.
+- Added the complete routed environment contract, executable checker, regression tests, and required pre-CR adapter in `47e4adb`; all local quality gates pass.
