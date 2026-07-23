@@ -46,6 +46,17 @@ The helper also accepts `--database <path>` and `--sessions-root <path>` for fix
 open Relay.app
 ```
 
+The native release gate runs the tests, release products, bundle assembly, and
+Info.plist validation, then requires fresh human-reviewed capture and
+accessibility evidence before it can pass:
+
+```sh
+./scripts/release-check.sh
+```
+
+The gate exits with status `2` when that live evidence is unavailable; it never
+manufactures evidence from a build or fixture.
+
 The visible app can launch automatically at macOS login:
 
 ```sh

@@ -1,10 +1,10 @@
 # Relay Project Truth
 
-summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, and one-window AppKit navigation.
-nextStep: Re-run screenshot/accessibility dogfood when the desktop capture backend is available; implementation and local verification are complete.
-blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream.]
-lastUpdated: 2026-07-21
-sourceOfTruth: commits 1a3f1b1, 0e8274a, and 0bb2307 plus final tests, release build, bundle validation, coverage, Pre-CR, and launch smoke
+summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, one-window AppKit navigation, and an explicit native release gate.
+nextStep: Re-run `scripts/release-check.sh` with fresh human-reviewed capture and accessibility evidence when the desktop capture backend is available.
+blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream; the native release gate remains blocked until a reviewed live evidence artifact is supplied.]
+lastUpdated: 2026-07-22
+sourceOfTruth: commits 1a3f1b1, 0e8274a, and 0bb2307 plus current Swift tests, release products, bundle validation, and scripts/release-check.sh
 healthScore: 95
 statusLabel: implementation complete; capture-limited dogfood
 
@@ -34,6 +34,7 @@ statusLabel: implementation complete; capture-limited dogfood
 | Coverage | pass | `coverage/lcov.info` refreshed by `scripts/test-with-coverage.sh`; changed-line coverage remains gated by the repository check |
 | Pre-CR readiness | pass | Commit hook completed with exit code 0 |
 | App bundle smoke | pass | Final `scripts/build-app.sh` completed; `Relay.app/Contents/Info.plist` linted successfully with macOS 13 minimum |
+| Native release gate | blocked | `scripts/release-check.sh` passed tests/products/bundle checks and exited 2 because reviewed live capture/accessibility evidence is missing |
 | Live launch smoke | pass | Fresh `Relay.app` launched as `RelayApp` and stayed running for process-level inspection; terminated after the check |
 | Crash regression | pass | Translated report reproduced a background notification/main-actor race; rebuilt app stayed alive through a 12-second monitor interval |
 | Helper smoke | pass | Isolated live import wrote 25 real Codex sessions and 5,489 events to temporary SQLite in 8 seconds |
@@ -59,3 +60,4 @@ statusLabel: implementation complete; capture-limited dogfood
 - Fixed the `relayDataDidChange` observer race identified in the translated crash report by dispatching Today refreshes through a main-queue observer and committed the fix as `637d6c9`.
 - Added deterministic title cleanup for Markdown headings, metadata tags, working-directory suffixes, boilerplate, and long prompt fragments; live Today now shows labels such as `Recommended plugins`, `Environment context`, and `AGENTS.md instructions` in `b11c1e1`.
 - Added the minimal agent operating contract and context index in `b3ed825`; future work now has a bounded default context route and explicit safety invariants.
+- Added the native release gate and readiness contract; current tests, release products, bundle assembly, and plist validation pass while live capture/accessibility evidence remains explicitly blocked.
