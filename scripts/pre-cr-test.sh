@@ -11,4 +11,5 @@ fi
 
 TEST_BUNDLE="${TEST_BINARY%/Contents/MacOS/RelayPackageTests}"
 cd "$PROJECT_ROOT"
+python3 scripts/test_environment_contract.py
 xcrun xctest "$TEST_BUNDLE"

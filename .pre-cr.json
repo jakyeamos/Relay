@@ -3,8 +3,19 @@
   "testCommand": "./scripts/pre-cr-test.sh",
   "coveragePaths": ["coverage/lcov.info"],
   "coverageFormat": "lcov",
-  "qualityAdapters": [],
+  "qualityAdapters": [
+    {
+      "name": "environment-contract",
+      "command": "python3 scripts/check_environment_contract.py",
+      "required": true
+    }
+  ],
   "threshold": 0,
+  "surfaces": {
+    "covered": ["Sources/**", "Tests/**"],
+    "ignored": ["AGENTS.md", ".agents/**", "README.md", "docs/**", "scripts/**", ".pre-cr.json", "Package.swift"],
+    "unsupported": []
+  },
   "checks": {
     "coverage": false,
     "security": true,
