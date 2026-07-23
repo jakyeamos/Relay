@@ -58,3 +58,4 @@ statusLabel: implementation complete; capture-limited dogfood
 - Dogfooded the native app across Today, search, resume, Playbook, and Usage; fixed main-thread startup/import blocking, real Codex nested payload mapping, session-card sizing/scroll behavior, and duplicate Git-root resolution in `077075c`.
 - Fixed the `relayDataDidChange` observer race identified in the translated crash report by dispatching Today refreshes through a main-queue observer and committed the fix as `637d6c9`.
 - Added deterministic title cleanup for Markdown headings, metadata tags, working-directory suffixes, boilerplate, and long prompt fragments; live Today now shows labels such as `Recommended plugins`, `Environment context`, and `AGENTS.md instructions` in `b11c1e1`.
+- Added the minimal agent operating contract and context index in `b3ed825`; future work now has a bounded default context route and explicit safety invariants.
