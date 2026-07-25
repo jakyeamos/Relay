@@ -3,6 +3,14 @@
   "testCommand": "./scripts/pre-cr-test.sh",
   "coveragePaths": ["coverage/lcov.info"],
   "coverageFormat": "lcov",
+  "qualityCommands": [
+    "swift build",
+    "swift test",
+    "swift test --enable-code-coverage",
+    "swift build -c release --product RelayApp",
+    "swift build -c release --product RelayHelper",
+    "python3 scripts/check_environment_contract.py"
+  ],
   "qualityAdapters": [
     {
       "name": "environment-contract",

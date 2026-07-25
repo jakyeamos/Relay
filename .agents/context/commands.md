@@ -7,12 +7,28 @@ Run commands from the repository root on macOS with the Swift toolchain.
 ```sh
 swift test
 swift build
-python3 scripts/check_environment_contract.py --as-of 2026-07-22
+python3 scripts/check_environment_contract.py --as-of 2026-07-25
 ```
 
 `swift test` is the canonical fast behavioral gate. There is no separate
 repository lint tool currently configured; keep Swift compiler diagnostics and
 the contract checker green.
+
+The disposable quality contract in `.pre-cr.json` declares these reproducible
+quality commands:
+
+```sh
+swift build
+swift test
+swift test --enable-code-coverage
+swift build -c release --product RelayApp
+swift build -c release --product RelayHelper
+python3 scripts/check_environment_contract.py
+```
+
+`./scripts/pre-cr-test.sh` remains the staged pre-CR bundle gate, and
+`./scripts/release-check.sh` remains the release gate because its final result
+requires fresh human-reviewed capture and accessibility evidence.
 
 ## Coverage and pre-CR
 

@@ -1,6 +1,6 @@
 # Relay context index
 
-last_reviewed: 2026-07-22
+last_reviewed: 2026-07-25
 owner: repository-owner
 freshness: review this index when Package.swift, scripts, Sources, or release policy changes
 

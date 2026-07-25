@@ -72,6 +72,36 @@ class EnvironmentContractTests(unittest.TestCase):
             self.assertEqual(result["status"], "fail")
             self.assertIn("required environment-contract pre-CR adapter is missing", result["errors"])
             self.assertTrue(any("RelayHelper" in item for item in result["errors"]))
+            self.assertIn("required .pre-cr.json qualityCommands list is missing", result["errors"])
+
+    def test_metadata_requires_all_quality_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for path in CHECKER.REQUIRED_FILES:
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("placeholder\n", encoding="utf-8")
+            (root / "Package.swift").write_text(
+                "RelayCore RelayApp RelayHelper RelayCoreTests\n",
+                encoding="utf-8",
+            )
+            (root / ".pre-cr.json").write_text(
+                '{"qualityCommands": ["swift build"], "qualityAdapters": [{'
+                '"name": "environment-contract", "command": '
+                '"python3 scripts/check_environment_contract.py", "required": true}]}\n',
+                encoding="utf-8",
+            )
+            context = root / ".agents" / "context"
+            context.mkdir(parents=True)
+            (context / "README.md").write_text("last_reviewed: 2026-07-22\n", encoding="utf-8")
+            for packet in CHECKER.PACKETS:
+                (context / packet).write_text("# packet\n", encoding="utf-8")
+            result = CHECKER.validate(root, date(2026, 7, 22), tracked_paths=[])
+            self.assertEqual(result["status"], "fail")
+            self.assertIn(
+                "required .pre-cr.json quality command is missing: swift test",
+                result["errors"],
+            )
 
     def test_secret_path_guard_allows_examples(self) -> None:
         self.assertEqual(CHECKER.check_secret_paths([".env.example", ".env.template"]), [])

@@ -35,6 +35,14 @@ REQUIRED_COMMANDS = (
     "./scripts/pre-cr-test.sh",
     "./scripts/release-check.sh",
 )
+REQUIRED_QUALITY_COMMANDS = (
+    "swift build",
+    "swift test",
+    "swift test --enable-code-coverage",
+    "swift build -c release --product RelayApp",
+    "swift build -c release --product RelayHelper",
+    "python3 scripts/check_environment_contract.py",
+)
 REQUIRED_TARGETS = ("RelayCore", "RelayApp", "RelayHelper", "RelayCoreTests")
 LINK_RE = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 REVIEW_RE = re.compile(r"last_reviewed:\s*(\d{4}-\d{2}-\d{2})")
@@ -88,6 +96,19 @@ def _check_metadata(root: Path) -> list[str]:
         pre_cr = json.loads(pre_cr_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         return [f"invalid .pre-cr.json: {exc}"]
+    quality_commands = pre_cr.get("qualityCommands")
+    if not isinstance(quality_commands, list):
+        errors.append("required .pre-cr.json qualityCommands list is missing")
+    else:
+        missing_quality_commands = [
+            command
+            for command in REQUIRED_QUALITY_COMMANDS
+            if command not in quality_commands
+        ]
+        errors.extend(
+            f"required .pre-cr.json quality command is missing: {command}"
+            for command in missing_quality_commands
+        )
     adapters = pre_cr.get("qualityAdapters", [])
     environment_adapter = next(
         (adapter for adapter in adapters if adapter.get("name") == "environment-contract"),
@@ -133,6 +154,16 @@ def validate(
     errors.extend(f"secret-like tracked path: {path}" for path in secret_paths)
     commands_path = root / ".agents" / "context" / "commands.md"
     commands_text = commands_path.read_text(encoding="utf-8") if commands_path.is_file() else ""
+    pre_cr_path = root / ".pre-cr.json"
+    try:
+        pre_cr = json.loads(pre_cr_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        quality_commands: list[object] = []
+    else:
+        raw_quality_commands = pre_cr.get("qualityCommands", [])
+        quality_commands = (
+            raw_quality_commands if isinstance(raw_quality_commands, list) else []
+        )
     return {
         "schema_version": "environment-contract/v1",
         "as_of": as_of.isoformat(),
@@ -148,6 +179,11 @@ def validate(
                 for command in REQUIRED_COMMANDS
             ),
             "declared_commands_required": len(REQUIRED_COMMANDS),
+            "quality_commands": sum(
+                command in quality_commands
+                for command in REQUIRED_QUALITY_COMMANDS
+            ),
+            "quality_commands_required": len(REQUIRED_QUALITY_COMMANDS),
             "tracked_secret_paths": len(secret_paths),
             "required_pre_cr_adapter": not any(
                 "environment-contract pre-CR" in error for error in errors
