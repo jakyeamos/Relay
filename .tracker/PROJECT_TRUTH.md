@@ -1,10 +1,10 @@
 # Relay Project Truth
 
 summary: Local-first native macOS Relay workbench with bounded Codex ingestion, normalized session titles, persistent repository workspaces, scoped session queries, deterministic Playbook Intelligence, Usage metrics, guarded file transactions, one-window AppKit navigation, and an explicit native release gate.
-nextStep: Keep the routed environment contract current with the weekly audit; rerun `scripts/release-check.sh` with fresh human-reviewed capture and accessibility evidence when the desktop capture backend is available.
+nextStep: Re-run the all-repository dynamic audit to verify Relay's disposable quality contract, then continue with the next clean remediation target; rerun `scripts/release-check.sh` with fresh human-reviewed capture and accessibility evidence when the desktop capture backend is available.
 blockers: [Desktop screenshot/accessibility capture is unavailable in this environment because ScreenCaptureKit fails to start its stream; the native release gate remains blocked until a reviewed live evidence artifact is supplied.]
-lastUpdated: 2026-07-22
-sourceOfTruth: commit 47e4adb plus current Swift tests, coverage, release products, bundle validation, pre-CR output, and scripts/release-check.sh
+lastUpdated: 2026-07-25
+sourceOfTruth: commit 71d0815 plus current Swift tests, coverage, release products, pre-CR output, and the strict disposable quality-command contract
 healthScore: 95
 statusLabel: implementation complete; capture-limited dogfood
 
@@ -23,7 +23,7 @@ statusLabel: implementation complete; capture-limited dogfood
 - Today observes monitor changes through a main-queue notification token and removes that token on disappearance, preventing AppKit main-actor access from the background monitoring queue.
 - Approved Playbook writes require an exact selected path, symlink resolution, precondition hashes, atomic writes, audit records, and guarded undo.
 - The local readiness gate runs the built XCTest bundle and requires a refreshed coverage artifact; no source or transcript data is sent by the default workflow.
-- The routed environment contract covers eight context packets, six canonical commands, target metadata, and secret-path checks; `scripts/check_environment_contract.py` is required by pre-CR.
+- The routed environment contract covers eight context packets, six canonical commands, six disposable quality commands, target metadata, and secret-path checks; `scripts/check_environment_contract.py` is required by pre-CR.
 - `codes.relay.app` is registered as a user LaunchAgent and opens the current `Relay.app` bundle at macOS login; `scripts/uninstall-startup.sh` removes only that registration.
 
 ## Quality
@@ -62,3 +62,4 @@ statusLabel: implementation complete; capture-limited dogfood
 - Added the minimal agent operating contract and context index in `b3ed825`; future work now has a bounded default context route and explicit safety invariants.
 - Added the native release gate and readiness contract; current tests, release products, bundle assembly, and plist validation pass while live capture/accessibility evidence remains explicitly blocked.
 - Added the complete routed environment contract, executable checker, regression tests, and required pre-CR adapter in `47e4adb`; all local quality gates pass.
+- Declared six reproducible disposable quality commands in `.pre-cr.json`, enforced them in the environment checker, refreshed the command packet, and passed the checker, pre-CR bundle gate, Swift build, 18 tests, coverage tests, and both release products in `71d0815`.
