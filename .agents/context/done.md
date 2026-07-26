@@ -11,8 +11,8 @@ A change is complete only when all applicable evidence is recorded:
 6. `scripts/pre-cr-test.sh` passes after its test-bundle prerequisite is built.
 7. `scripts/release-check.sh` is run for release claims, and any missing live
    capture/accessibility evidence is reported as blocked.
-8. `.tracker/PROJECT_TRUTH.md` is updated as a current snapshot after the
-   atomic code commit; it is not used as an append-only changelog.
+8. Any maintained project notes are updated only when the documented scope
+   changes; they are not used as an append-only changelog.
 
 Do not claim a release or live UI acceptance from compiler, unit-test, or
 process-level evidence alone.

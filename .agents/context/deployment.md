@@ -11,7 +11,7 @@ output and is ignored by Git.
 `./scripts/install-startup.sh` installs the visible app's user-level
 `codes.relay.app` LaunchAgent. `./scripts/install-launch-agent.sh` is a
 separate, explicit choice for the headless helper. Verify the resulting
-registration with the commands documented in the script and project truth.
+registration with the commands documented in the script and release notes.
 
 ## Release gate
 

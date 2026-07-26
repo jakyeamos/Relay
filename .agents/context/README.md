@@ -20,5 +20,5 @@ into context.
 - [`deployment.md`](deployment.md) — bundle, startup, rollback, and release procedure.
 
 Use the narrowest packet that answers the question. If a packet conflicts with
-live code or the project truth snapshot, live code and verified command output
-win; update the packet in the same change that changes the behavior.
+live code, live code and verified command output win; update the packet in the
+same change that changes the behavior.
