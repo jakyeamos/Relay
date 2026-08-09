@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "project": {
+    "name": "relay",
+    "identity": "A private, keyboard-first macOS control plane for personal AI coding workflows with Today, Playbook, and Usage surfaces.",
+    "audience": "The owner coordinating recurring local AI coding workflows who needs fast capture, explicit playbooks, and visible usage state.",
+    "core_loop": "Capture a work item or workflow, route it through the appropriate playbook, inspect usage and release evidence, and keep execution or external effects behind explicit gates.",
+    "north_star": "The owner can move recurring AI coding work through a fast local control surface without losing context, usage visibility, or release ownership.",
+    "not_this": ["A general-purpose remote automation service", "A hidden capture or submission agent", "A release authority that bypasses separate capture and release gates"]
+  },
+  "targets": {
+    "mvp": {"definition": "The owner can use the local Today and Playbook surfaces to capture and route a recurring AI coding task with visible usage and explicit next action."},
+    "complete_product": {"definition": "Relay provides a reliable private control plane for recurring AI coding work with durable playbooks, usage evidence, recoverable capture, and separate release gates."}
+  },
+  "pillars": [
+    {"id": "keyboard-first-workflow", "name": "Keyboard-first workflow", "outcomes": [{"id": "today-to-playbook", "name": "A recurring coding task can move quickly from capture into the correct playbook with enough context to continue safely.", "targets": ["mvp", "complete_product"], "maturity": 50, "confidence": "low", "layers": {"intended": "The owner spends less effort navigating workflow state and more effort on the work itself.", "planned": "The project defines Today, Playbook, and Usage surfaces for personal AI coding workflows.", "implemented": "The repository contains the private local control-plane implementation.", "verified": "README and AGENTS establish the scope; live keyboard, capture, and accessibility behavior was not run here."}, "evidence": [{"ref": "README.md", "note": "Defines Relay's private keyboard-first control-plane scope and surfaces.", "observed_at": "2026-08-02T13:25:04Z"}, {"ref": "AGENTS.md", "note": "Provides repository operating boundaries.", "observed_at": "2026-08-02T13:25:04Z"}], "blockers": [{"kind": "verification", "summary": "Live capture, keyboard, accessibility, and workflow continuation evidence remain unverified."}]}]},
+    {"id": "gated-usage-release", "name": "Gated usage and release", "outcomes": [{"id": "visible-safe-state", "name": "Usage and release state are visible while capture and release remain separate, explicit, and owner-controlled.", "targets": ["complete_product"], "maturity": 25, "confidence": "medium", "layers": {"intended": "A private control surface should not blur local workflow state with release or external effects.", "planned": "The project separates capture and release gates and includes Usage as a first-class surface.", "implemented": "The repository documents and implements the corresponding local surfaces.", "verified": "No release or usage-gate execution was performed in this bootstrap."}, "evidence": [{"ref": "README.md", "note": "Documents Today, Playbook, Usage, and separate capture/release gates.", "observed_at": "2026-08-02T13:25:04Z"}], "blockers": [{"kind": "verification", "summary": "The live gate sequence and owner-controlled recovery path still require execution evidence."}]}]}
+  ],
+  "source_layers": {"intended": [{"ref": "README.md", "note": "Private product identity and workflow loop.", "observed_at": "2026-08-02T13:25:04Z"}], "planned": [{"ref": "README.md", "note": "Today, Playbook, Usage, and gate scope.", "observed_at": "2026-08-02T13:25:04Z"}], "implemented": [{"ref": "README.md", "note": "Current local control-plane surface.", "observed_at": "2026-08-02T13:25:04Z"}], "verified": [{"ref": "AGENTS.md", "note": "Repository operating constraints; no live UI or gate execution here.", "observed_at": "2026-08-02T13:25:04Z"}]},
+  "drift": [{"kind": "verification-gap", "summary": "Relay is treated as an experimental private tool: its intended keyboard-first workflow and separate gates are documented, but live capture, usage, accessibility, and release evidence are not established.", "status": "open", "observed_at": "2026-08-02T13:25:04Z", "evidence": [{"ref": "README.md", "note": "Documents the experimental local workflow surface.", "observed_at": "2026-08-02T13:25:04Z"}]}],
+  "updated_at": "2026-08-02T13:25:04Z"
+}

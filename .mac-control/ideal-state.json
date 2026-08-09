@@ -1,0 +1,136 @@
+{
+  "schema": "mac-control-task-manifest/v1",
+  "repository_id": "repo-e7c3cad5c391c93f",
+  "repository_name": "relay",
+  "applicability": "applicable",
+  "applicability_reason": "Relay exposes a supported native macOS workbench; this manifest records its supported user-facing workflow catalog while live and measured evidence remain outstanding.",
+  "app": {
+    "name": "Relay",
+    "bundle_id": "codes.relay.app"
+  },
+  "criteria": {
+    "stable_identity": true,
+    "correct_semantics": true,
+    "observable_state": true,
+    "useful_hierarchy": true,
+    "efficient_navigation": true,
+    "verifiable_outcomes": true,
+    "route_flexibility": true,
+    "stable_change_behavior": true
+  },
+  "tasks": [
+    {
+      "task_id": "focus-search",
+      "stable_target_id": "relay.search.input",
+      "hierarchy": "relay > search > input",
+      "semantic_action": "focus Search Relay",
+      "observable_postcondition": "Search Relay is focused and ready for a value",
+      "observable_states": [
+        "enabled",
+        "focused",
+        "selected",
+        "expanded",
+        "visible",
+        "loading",
+        "completed"
+      ],
+      "navigation_strategy": "semantic target lookup by stable identifier, accessible role, and label; use semantic scrolling when the target is offscreen",
+      "eligible_routes": [
+        "accessibility",
+        "keyboard",
+        "scrolling"
+      ],
+      "selected_route": "accessibility",
+      "change_states": [
+        "loading",
+        "modal",
+        "disabled",
+        "permission_unavailable"
+      ],
+      "accessibility": {
+        "identifier": "relay.search.input",
+        "label": "Search Relay",
+        "role": "AXTextField",
+        "required_actions": [
+          "AXFocus",
+          "AXSetValue"
+        ]
+      }
+    },
+    {
+      "task_id": "open-search-result",
+      "stable_target_id": "relay.search.result",
+      "hierarchy": "relay > search > result",
+      "semantic_action": "open a search result",
+      "observable_postcondition": "Selected result detail and title/metadata are readable",
+      "observable_states": [
+        "enabled",
+        "focused",
+        "selected",
+        "expanded",
+        "visible",
+        "loading",
+        "completed"
+      ],
+      "navigation_strategy": "semantic target lookup by stable identifier, accessible role, and label; use semantic scrolling when the target is offscreen",
+      "eligible_routes": [
+        "accessibility",
+        "keyboard",
+        "scrolling"
+      ],
+      "selected_route": "accessibility",
+      "change_states": [
+        "loading",
+        "modal",
+        "disabled",
+        "permission_unavailable"
+      ],
+      "accessibility": {
+        "identifier": "relay.search.result",
+        "label": "Search result",
+        "role": "AXLink",
+        "required_actions": [
+          "AXFocus",
+          "AXPress"
+        ]
+      }
+    },
+    {
+      "task_id": "inspect-result-details",
+      "stable_target_id": "relay.result.details",
+      "hierarchy": "relay > result > details",
+      "semantic_action": "focus result details",
+      "observable_postcondition": "Detail panel loading, empty, or populated state is readable",
+      "observable_states": [
+        "enabled",
+        "focused",
+        "selected",
+        "expanded",
+        "visible",
+        "loading",
+        "completed"
+      ],
+      "navigation_strategy": "semantic target lookup by stable identifier, accessible role, and label; use semantic scrolling when the target is offscreen",
+      "eligible_routes": [
+        "accessibility",
+        "keyboard",
+        "scrolling"
+      ],
+      "selected_route": "accessibility",
+      "change_states": [
+        "loading",
+        "modal",
+        "disabled",
+        "permission_unavailable"
+      ],
+      "accessibility": {
+        "identifier": "relay.result.details",
+        "label": "Result details",
+        "role": "AXGroup",
+        "required_actions": [
+          "AXFocus"
+        ]
+      }
+    }
+  ]
+}
