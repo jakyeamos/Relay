@@ -1,0 +1,11 @@
+{
+  "schema_version": "change-surface-matrix/v1",
+  "subject": {"kind": "repository", "id": "relay"},
+  "owner": "repository-owner",
+  "last_reviewed": "2026-08-11",
+  "surfaces": [
+    {"id": "swift-app", "scope": "local", "path": "Sources/, Tests/, Package.swift, and scripts/", "owner": "repository-owner", "condition": "application behavior, persistence, packaging, or release logic changes", "operations": ["add", "change", "remove"], "validation": ["swift build", "swift test"], "status": "applicable"},
+    {"id": "installed-bundle", "scope": "external", "path": "installed macOS application and release artifact", "owner": "release-owner", "condition": "bundle, startup, persistence, or user-visible behavior changes", "operations": ["add", "change", "remove"], "validation": ["docs/RELEASE_READINESS.md", "installed-app smoke check"], "status": "applicable"}
+  ],
+  "unresolved_surfaces": []
+}
