@@ -1,135 +1,657 @@
 {
-  "schema": "mac-control-task-manifest/v1",
+  "schema": "mac-control-task-manifest/v4",
   "repository_id": "repo-e7c3cad5c391c93f",
   "repository_name": "relay",
   "applicability": "applicable",
-  "applicability_reason": "Relay exposes a supported native macOS workbench; this manifest records its supported user-facing workflow catalog while live and measured evidence remain outstanding.",
+  "applicability_reason": "Relay exposes a native AppKit search, result selection, and inspector workflow with stable AX identifiers, explicit loading and unavailable states, and independent AXValue readbacks.",
   "app": {
     "name": "Relay",
     "bundle_id": "codes.relay.app"
   },
-  "criteria": {
-    "stable_identity": true,
-    "correct_semantics": true,
-    "observable_state": true,
-    "useful_hierarchy": true,
-    "efficient_navigation": true,
-    "verifiable_outcomes": true,
-    "route_flexibility": true,
-    "stable_change_behavior": true
-  },
+  "criteria": {},
   "tasks": [
     {
+      "surface_kind": "native_app_ui",
+      "focus_policy": "foreground",
+      "foreground_postcondition": "target_foreground",
+      "fallback_policy": "fresh_state_handoff",
+      "change_states": [
+        "loading"
+      ],
+      "change_state_exemptions": {
+        "modal": "Focusing the persistent workbench search field does not present a modal.",
+        "disabled": "The search field remains enabled while Relay refreshes its local index.",
+        "permission_unavailable": "Local index failures are exposed as the blocking data_unavailable state on the containing search surface."
+      },
+      "navigation_strategy": "direct_semantic",
+      "route_candidates": [
+        {
+          "id": "mac-control-ax",
+          "provider": "mac_control",
+          "method": "accessibility",
+          "interaction_mode": "semantic"
+        },
+        {
+          "id": "computer-pointer",
+          "provider": "computer_use",
+          "method": "pointer",
+          "interaction_mode": "pointer"
+        }
+      ],
+      "shortcut_acceleration": {
+        "disposition": "not_applicable",
+        "reason": "Relay exposes Focus search through its command palette, but no task-specific direct shortcut or reversible shortcut assignment surface is implemented."
+      },
       "task_id": "focus-search",
       "stable_target_id": "relay.search.input",
-      "hierarchy": "relay > search > input",
-      "semantic_action": "focus Search Relay",
-      "observable_postcondition": "Search Relay is focused and ready for a value",
+      "hierarchy": "relay.workbench > list pane > search input",
+      "semantic_action": "set accessibility focus and search value",
+      "observable_postcondition": "AXFocused on relay.search.input equals true",
       "observable_states": [
         "enabled",
         "focused",
-        "selected",
-        "expanded",
         "visible",
-        "loading",
         "completed"
       ],
-      "navigation_strategy": "semantic target lookup by stable identifier, accessible role, and label; use semantic scrolling when the target is offscreen",
-      "eligible_routes": [
-        "accessibility",
-        "keyboard",
-        "scrolling"
-      ],
-      "selected_route": "accessibility",
-      "change_states": [
-        "loading",
-        "modal",
-        "disabled",
-        "permission_unavailable"
-      ],
+      "state_exemptions": {
+        "selected": "The search field is focused and value-bearing rather than selected as a list item.",
+        "expanded": "The search field does not own an expandable disclosure.",
+        "loading": "Refresh loading is exposed by relay.search.state on the containing search surface."
+      },
       "accessibility": {
         "identifier": "relay.search.input",
         "label": "Search Relay",
-        "role": "AXTextField",
-        "required_actions": [
-          "AXFocus",
-          "AXSetValue"
-        ]
+        "role": "AXTextField"
+      },
+      "verification_oracle": {
+        "oracle_id": "focus-search.ax-focused",
+        "kind": "element_state",
+        "expected_state": "true",
+        "independent_readback": true
+      },
+      "semantic_evidence": {
+        "stable_identity": {
+          "level": "source_grounded",
+          "claims": {
+            "selector_kind": "ax_identifier",
+            "selector_value": "relay.search.input",
+            "scope": "relay.workbench",
+            "uniqueness": "exactly_one"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "searchField.identifier = NSUserInterfaceItemIdentifier(\"relay.search.input\")",
+              "evidence_tokens": [
+                "relay.search.input",
+                "Search Relay"
+              ]
+            }
+          ]
+        },
+        "correct_semantics": {
+          "level": "source_grounded",
+          "claims": {
+            "role": "AXTextField",
+            "accessible_name": "Search Relay",
+            "action": "AXFocus and AXSetValue"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "searchField.setAccessibilityLabel(\"Search Relay\")",
+              "evidence_tokens": [
+                "NSSearchField",
+                "setAccessibilityLabel"
+              ]
+            }
+          ]
+        },
+        "observable_state": {
+          "level": "source_grounded",
+          "claims": {
+            "property": "AXFocused",
+            "unavailable_behavior": "block_and_explain"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func focusSearch()",
+              "evidence_tokens": [
+                "makeFirstResponder(searchField)",
+                "relay.search.state"
+              ]
+            }
+          ]
+        },
+        "useful_hierarchy": {
+          "level": "source_grounded",
+          "claims": {
+            "container": "relay.workbench",
+            "relationship": "list pane > search row > search input",
+            "uniqueness": "exactly_one"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "let searchRow = NSStackView(views: [searchField",
+              "evidence_tokens": [
+                "let heading = NSStackView",
+                "let stack = NSStackView"
+              ]
+            }
+          ]
+        },
+        "efficient_navigation": {
+          "level": "source_grounded",
+          "claims": {
+            "strategy": "direct_semantic",
+            "entry_point": "relay.search.input"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func focusSearch()",
+              "evidence_tokens": [
+                "makeFirstResponder",
+                "searchField"
+              ]
+            }
+          ]
+        },
+        "verifiable_outcomes": {
+          "level": "source_grounded",
+          "claims": {
+            "readback_provider": "mac_control",
+            "property": "AXFocused",
+            "operator": "equals",
+            "expected": "true"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func focusSearch()",
+              "evidence_tokens": [
+                "window?.makeFirstResponder(searchField)",
+                "searchField.identifier"
+              ]
+            }
+          ]
+        },
+        "route_flexibility": {
+          "level": "source_grounded",
+          "claims": {
+            "primary_provider": "mac_control",
+            "secondary_provider": "computer_use",
+            "fallback_policy": "fresh_state_handoff"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "searchField.identifier = NSUserInterfaceItemIdentifier(\"relay.search.input\")",
+              "evidence_tokens": [
+                "relay.search.input",
+                "searchField.setAccessibilityLabel",
+                "translatesAutoresizingMaskIntoConstraints"
+              ]
+            }
+          ]
+        },
+        "stable_change_behavior": {
+          "level": "source_grounded",
+          "claims": {
+            "scenarios": "loading,modal,disabled,permission_unavailable",
+            "failure_behavior": "block_and_explain"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func setTaskState(_ state: String, message: String? = nil)",
+              "evidence_tokens": [
+                "loading",
+                "data_unavailable",
+                "No matching results"
+              ]
+            }
+          ]
+        }
       }
     },
     {
+      "surface_kind": "native_app_ui",
+      "focus_policy": "foreground",
+      "foreground_postcondition": "target_foreground",
+      "fallback_policy": "fresh_state_handoff",
+      "change_states": [
+        "loading"
+      ],
+      "change_state_exemptions": {
+        "modal": "Selecting a result updates the persistent inspector and does not present a modal.",
+        "disabled": "Unavailable rows are omitted instead of exposed as disabled result actions.",
+        "permission_unavailable": "Local index failures replace result readiness with data_unavailable and a visible explanation."
+      },
+      "navigation_strategy": "direct_semantic",
+      "route_candidates": [
+        {
+          "id": "mac-control-ax",
+          "provider": "mac_control",
+          "method": "accessibility",
+          "interaction_mode": "semantic"
+        },
+        {
+          "id": "computer-pointer",
+          "provider": "computer_use",
+          "method": "pointer",
+          "interaction_mode": "pointer"
+        }
+      ],
+      "shortcut_acceleration": {
+        "disposition": "not_applicable",
+        "reason": "Result choice depends on the current filtered row and has no single stable task-specific shortcut."
+      },
       "task_id": "open-search-result",
-      "stable_target_id": "relay.search.result",
-      "hierarchy": "relay > search > result",
-      "semantic_action": "open a search result",
-      "observable_postcondition": "Selected result detail and title/metadata are readable",
+      "stable_target_id": "relay.search.results",
+      "hierarchy": "relay.workbench > list pane > results table > identified result row",
+      "semantic_action": "select an identified result row",
+      "observable_postcondition": "AXValue on relay.result.details equals details_ready",
       "observable_states": [
         "enabled",
         "focused",
         "selected",
-        "expanded",
         "visible",
         "loading",
         "completed"
       ],
-      "navigation_strategy": "semantic target lookup by stable identifier, accessible role, and label; use semantic scrolling when the target is offscreen",
-      "eligible_routes": [
-        "accessibility",
-        "keyboard",
-        "scrolling"
-      ],
-      "selected_route": "accessibility",
-      "change_states": [
-        "loading",
-        "modal",
-        "disabled",
-        "permission_unavailable"
-      ],
+      "state_exemptions": {
+        "expanded": "Selecting a result updates a sibling inspector rather than expanding the row."
+      },
       "accessibility": {
-        "identifier": "relay.search.result",
-        "label": "Search result",
-        "role": "AXLink",
-        "required_actions": [
-          "AXFocus",
-          "AXPress"
-        ]
+        "identifier": "relay.search.results",
+        "label": "Relay items",
+        "role": "AXTable"
+      },
+      "verification_oracle": {
+        "oracle_id": "open-search-result.details-state",
+        "kind": "task_state",
+        "expected_state": "details_ready",
+        "independent_readback": true
+      },
+      "semantic_evidence": {
+        "stable_identity": {
+          "level": "source_grounded",
+          "claims": {
+            "selector_kind": "ax_identifier",
+            "selector_value": "relay.search.results",
+            "scope": "relay.workbench",
+            "uniqueness": "exactly_one"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "tableView.identifier = NSUserInterfaceItemIdentifier(\"relay.search.results\")",
+              "evidence_tokens": [
+                "relay.search.results",
+                "Relay items"
+              ]
+            }
+          ]
+        },
+        "correct_semantics": {
+          "level": "source_grounded",
+          "claims": {
+            "role": "AXTable with identified selectable rows",
+            "accessible_name": "Relay items",
+            "action": "AXSelect"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "tableView.identifier = NSUserInterfaceItemIdentifier(\"relay.search.results\")",
+              "evidence_tokens": [
+                "tableView.delegate = self",
+                "tableView.dataSource = self",
+                "tableView.setAccessibilityLabel(\"Relay items\")"
+              ]
+            }
+          ]
+        },
+        "observable_state": {
+          "level": "source_grounded",
+          "claims": {
+            "property": "AXValue and AXHelp task-state",
+            "unavailable_behavior": "block_and_explain"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func setTaskState(_ state: String, message: String? = nil)",
+              "evidence_tokens": [
+                "setAccessibilityValue(state)",
+                "result-count"
+              ]
+            }
+          ]
+        },
+        "useful_hierarchy": {
+          "level": "source_grounded",
+          "claims": {
+            "container": "relay.search.results",
+            "relationship": "results table > result row > sibling inspector",
+            "uniqueness": "exactly_one"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "tableView.identifier = NSUserInterfaceItemIdentifier(\"relay.search.results\")",
+              "evidence_tokens": [
+                "scroll.documentView = tableView",
+                "let stack = NSStackView(views: [heading, searchRow, filterRow"
+              ]
+            }
+          ]
+        },
+        "efficient_navigation": {
+          "level": "source_grounded",
+          "claims": {
+            "strategy": "direct_semantic",
+            "entry_point": "relay.search.results"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "tableView.identifier = NSUserInterfaceItemIdentifier(\"relay.search.results\")",
+              "evidence_tokens": [
+                "selectRowIndexes",
+                "scrollRowToVisible"
+              ]
+            }
+          ]
+        },
+        "verifiable_outcomes": {
+          "level": "source_grounded",
+          "claims": {
+            "readback_provider": "mac_control",
+            "property": "AXValue(relay.result.details)",
+            "operator": "equals",
+            "expected": "details_ready"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "selectedID = id\n        switch rows[row] {",
+              "evidence_tokens": [
+                "onSelectSession?(id)",
+                "onSelectCandidate?(id)",
+                "onSelectMetric?(id)"
+              ]
+            },
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func showSession(",
+              "evidence_tokens": [
+                "setTaskState(\"details_ready\")"
+              ]
+            },
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func setTaskState(_ state: String) {",
+              "evidence_tokens": [
+                "setAccessibilityValue(state)",
+                "task-state="
+              ]
+            }
+          ]
+        },
+        "route_flexibility": {
+          "level": "source_grounded",
+          "claims": {
+            "primary_provider": "mac_control",
+            "secondary_provider": "computer_use",
+            "fallback_policy": "fresh_state_handoff"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "tableView.identifier = NSUserInterfaceItemIdentifier(\"relay.search.results\")",
+              "evidence_tokens": [
+                "tableView.setAccessibilityLabel",
+                "scroll.documentView = tableView"
+              ]
+            }
+          ]
+        },
+        "stable_change_behavior": {
+          "level": "source_grounded",
+          "claims": {
+            "scenarios": "loading,modal,disabled,permission_unavailable",
+            "failure_behavior": "block_and_explain"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func setTaskState(_ state: String, message: String? = nil)",
+              "evidence_tokens": [
+                "data_unavailable",
+                "Loading Relay data",
+                "No matching results"
+              ]
+            }
+          ]
+        }
       }
     },
     {
+      "surface_kind": "native_app_ui",
+      "focus_policy": "foreground",
+      "foreground_postcondition": "target_foreground",
+      "fallback_policy": "fresh_state_handoff",
+      "change_states": [
+        "loading"
+      ],
+      "change_state_exemptions": {
+        "modal": "The inspector is a persistent split-view region, not a modal.",
+        "disabled": "The read-only inspector is populated, empty, loading, or unavailable rather than enabled or disabled.",
+        "permission_unavailable": "Local read failures replace inspector readiness with data_unavailable."
+      },
+      "navigation_strategy": "direct_semantic",
+      "route_candidates": [
+        {
+          "id": "mac-control-ax",
+          "provider": "mac_control",
+          "method": "accessibility",
+          "interaction_mode": "semantic"
+        },
+        {
+          "id": "computer-pointer",
+          "provider": "computer_use",
+          "method": "pointer",
+          "interaction_mode": "pointer"
+        }
+      ],
+      "shortcut_acceleration": {
+        "disposition": "not_applicable",
+        "reason": "The inspector is a readback region; it does not require a task-specific invocation shortcut."
+      },
       "task_id": "inspect-result-details",
       "stable_target_id": "relay.result.details",
-      "hierarchy": "relay > result > details",
-      "semantic_action": "focus result details",
-      "observable_postcondition": "Detail panel loading, empty, or populated state is readable",
+      "hierarchy": "relay.workbench > content split > inspector > detail sections",
+      "semantic_action": "read the inspector task state and detail hierarchy",
+      "observable_postcondition": "AXValue on relay.result.details equals details_ready",
       "observable_states": [
-        "enabled",
-        "focused",
-        "selected",
-        "expanded",
         "visible",
         "loading",
         "completed"
       ],
-      "navigation_strategy": "semantic target lookup by stable identifier, accessible role, and label; use semantic scrolling when the target is offscreen",
-      "eligible_routes": [
-        "accessibility",
-        "keyboard",
-        "scrolling"
-      ],
-      "selected_route": "accessibility",
-      "change_states": [
-        "loading",
-        "modal",
-        "disabled",
-        "permission_unavailable"
-      ],
+      "state_exemptions": {
+        "enabled": "The inspector is a read-only group rather than an actionable control.",
+        "focused": "The task reads the group directly without requiring keyboard focus.",
+        "selected": "Selection belongs to the result row, not the inspector.",
+        "expanded": "Detail sections are persistently rendered and do not use disclosures."
+      },
       "accessibility": {
         "identifier": "relay.result.details",
         "label": "Result details",
-        "role": "AXGroup",
-        "required_actions": [
-          "AXFocus"
-        ]
+        "role": "AXGroup"
+      },
+      "verification_oracle": {
+        "oracle_id": "inspect-result-details.task-state",
+        "kind": "task_state",
+        "expected_state": "details_ready",
+        "independent_readback": true
+      },
+      "semantic_evidence": {
+        "stable_identity": {
+          "level": "source_grounded",
+          "claims": {
+            "selector_kind": "ax_identifier",
+            "selector_value": "relay.result.details",
+            "scope": "relay.workbench",
+            "uniqueness": "exactly_one"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "identifier = NSUserInterfaceItemIdentifier(\"relay.result.details\")",
+              "evidence_tokens": [
+                "relay.result.details",
+                "Result details"
+              ]
+            }
+          ]
+        },
+        "correct_semantics": {
+          "level": "source_grounded",
+          "claims": {
+            "role": "AXGroup",
+            "accessible_name": "Result details",
+            "action": "read"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "identifier = NSUserInterfaceItemIdentifier(\"relay.result.details\")",
+              "evidence_tokens": [
+                "setAccessibilityElement(true)",
+                "setAccessibilityRole(.group)",
+                "setAccessibilityLabel(\"Result details\")"
+              ]
+            }
+          ]
+        },
+        "observable_state": {
+          "level": "source_grounded",
+          "claims": {
+            "property": "AXValue",
+            "unavailable_behavior": "block_and_explain"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func setTaskState(_ state: String)",
+              "evidence_tokens": [
+                "setAccessibilityValue(state)",
+                "task-state="
+              ]
+            }
+          ]
+        },
+        "useful_hierarchy": {
+          "level": "source_grounded",
+          "claims": {
+            "container": "relay.result.details",
+            "relationship": "inspector header > scroll document > named detail sections",
+            "uniqueness": "exactly_one"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "private func addSection(_ title: String, content: NSView)",
+              "evidence_tokens": [
+                "relaySectionHeader(title)",
+                "stack.addArrangedSubview"
+              ]
+            }
+          ]
+        },
+        "efficient_navigation": {
+          "level": "source_grounded",
+          "claims": {
+            "strategy": "direct_semantic",
+            "entry_point": "relay.result.details"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "identifier = NSUserInterfaceItemIdentifier(\"relay.result.details\")",
+              "evidence_tokens": [
+                "setAccessibilityElement(true)",
+                "setAccessibilityRole(.group)"
+              ]
+            }
+          ]
+        },
+        "verifiable_outcomes": {
+          "level": "source_grounded",
+          "claims": {
+            "readback_provider": "mac_control",
+            "property": "AXValue",
+            "operator": "equals",
+            "expected": "details_ready"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "func showSession(",
+              "evidence_tokens": [
+                "clear(title: session.title)",
+                "setTaskState(\"details_ready\")"
+              ]
+            }
+          ]
+        },
+        "route_flexibility": {
+          "level": "source_grounded",
+          "claims": {
+            "primary_provider": "mac_control",
+            "secondary_provider": "computer_use",
+            "fallback_policy": "fresh_state_handoff"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "identifier = NSUserInterfaceItemIdentifier(\"relay.result.details\")",
+              "evidence_tokens": [
+                "setAccessibilityElement(true)",
+                "setAccessibilityRole(.group)",
+                "buildView()"
+              ]
+            }
+          ]
+        },
+        "stable_change_behavior": {
+          "level": "source_grounded",
+          "claims": {
+            "scenarios": "loading,modal,disabled,permission_unavailable",
+            "failure_behavior": "block_and_explain"
+          },
+          "source_refs": [
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "inspectorPane.setTaskState(\"loading\")",
+              "evidence_tokens": [
+                "listPane.setTaskState(\"loading\")"
+              ]
+            },
+            {
+              "path": "Sources/RelayApp/RelayWorkbenchViewController.swift",
+              "anchor": "inspectorPane.setTaskState(snapshot.dataState)",
+              "evidence_tokens": [
+                "snapshot.dataState != \"ready\"",
+                "listPane.setTaskState(snapshot.dataState"
+              ]
+            }
+          ]
+        }
       }
     }
   ]
