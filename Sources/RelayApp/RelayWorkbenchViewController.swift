@@ -74,6 +74,17 @@ private final class RelayWorkbenchRootView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        identifier = NSUserInterfaceItemIdentifier("relay.workbench")
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel("Relay workbench")
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard flags.contains(.command), let character = event.charactersIgnoringModifiers?.lowercased() else {
@@ -102,6 +113,8 @@ private struct RelayWorkbenchSnapshot: Sendable {
     let metrics: [UsageMetric]
     let activity: [UsageActivityPoint]
     let providerHealth: [ProviderHealth]
+    let dataState: String
+    let dataMessage: String?
 }
 
 @MainActor
@@ -361,6 +374,8 @@ final class RelayWorkbenchViewController: NSViewController, NSSplitViewDelegate 
 
     private func refreshData() {
         refreshGeneration += 1
+        listPane.setTaskState("loading")
+        inspectorPane.setTaskState("loading")
         let generation = refreshGeneration
         let store = self.store
         let resolver = self.resolver
@@ -376,19 +391,41 @@ final class RelayWorkbenchViewController: NSViewController, NSSplitViewDelegate 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard self != nil else { return }
             let now = Date()
-            let allSessions = (try? store.sessions(query: SessionQuery(sortOrder: .recent, limit: 2_000))) ?? []
-            try? store.ensureWorkspaces(for: allSessions, now: now)
-            let storedWorkspaces = (try? store.workspaces(includeHidden: true)) ?? []
+            var dataState = "ready"
+            var dataMessage: String?
+            let allSessions: [Session]
+            do {
+                allSessions = try store.sessions(query: SessionQuery(sortOrder: .recent, limit: 2_000))
+            } catch {
+                allSessions = []
+                dataState = "data_unavailable"
+                dataMessage = "Relay could not read the local session index."
+            }
+            var storedWorkspaces: [RelayWorkspace] = []
+            do {
+                try store.ensureWorkspaces(for: allSessions, now: now)
+                storedWorkspaces = try store.workspaces(includeHidden: true)
+            } catch {
+                dataState = "data_unavailable"
+                dataMessage = dataMessage ?? "Relay could not read the local workspace index."
+            }
             let effectiveWorkspaceID = storedWorkspaces.first(where: { $0.id == workspaceID })?.isHidden == true ? nil : workspaceID
             let summaries = resolver.summaries(sessions: allSessions, storedWorkspaces: storedWorkspaces, now: now)
-            let filteredSessions = (try? store.sessions(query: SessionQuery(
-                workspaceID: effectiveWorkspaceID,
-                text: text,
-                provider: provider,
-                statuses: status.map { [$0] }.map(Set.init) ?? [],
-                sortOrder: sortOrder,
-                limit: 2_000
-            ))) ?? []
+            let filteredSessions: [Session]
+            do {
+                filteredSessions = try store.sessions(query: SessionQuery(
+                    workspaceID: effectiveWorkspaceID,
+                    text: text,
+                    provider: provider,
+                    statuses: status.map { [$0] }.map(Set.init) ?? [],
+                    sortOrder: sortOrder,
+                    limit: 2_000
+                ))
+            } catch {
+                filteredSessions = []
+                dataState = "data_unavailable"
+                dataMessage = dataMessage ?? "Relay could not search the local session index."
+            }
             let scopedForPlaybook = allSessions.filter { session in
                 resolver.matches(session, workspaceID: effectiveWorkspaceID) && (provider == nil || session.provider == provider)
             }
@@ -431,7 +468,9 @@ final class RelayWorkbenchViewController: NSViewController, NSSplitViewDelegate 
                 candidates: mergedCandidates,
                 metrics: metrics,
                 activity: activity,
-                providerHealth: health
+                providerHealth: health,
+                dataState: dataState,
+                dataMessage: dataMessage
             )
             DispatchQueue.main.async {
                 guard let self, self.refreshGeneration == generation else { return }
@@ -485,7 +524,13 @@ final class RelayWorkbenchViewController: NSViewController, NSSplitViewDelegate 
             compact: isCompactList,
             workspaceName: selectedWorkspaceName
         )
+        if snapshot.dataState != "ready" {
+            listPane.setTaskState(snapshot.dataState, message: snapshot.dataMessage)
+        }
         updateInspector()
+        if snapshot.dataState != "ready" {
+            inspectorPane.setTaskState(snapshot.dataState)
+        }
         updateInspectorVisibility()
     }
 
@@ -1249,6 +1294,7 @@ private final class RelayListPaneView: NSView, NSTableViewDataSource, NSTableVie
     private let modeLabel = NSTextField(labelWithString: "Today")
     private let subtitleLabel = NSTextField(labelWithString: "")
     private let scopeLabel = NSTextField(labelWithString: "")
+    private let taskStateLabel = NSTextField(labelWithString: "")
     private let providerPopup = NSPopUpButton()
     private let statusPopup = NSPopUpButton()
     private let sortPopup = NSPopUpButton()
@@ -1298,6 +1344,8 @@ private final class RelayListPaneView: NSView, NSTableViewDataSource, NSTableVie
         case .usage: rows = makeMetricRows(metrics)
         }
         tableView.reloadData()
+        let resultCount = rows.compactMap(\.id).count
+        setTaskState(resultCount == 0 ? "no_results" : "results_ready")
         if let selectedID, let row = rows.firstIndex(where: { $0.id == selectedID }) {
             tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             tableView.scrollRowToVisible(row)
@@ -1313,14 +1361,36 @@ private final class RelayListPaneView: NSView, NSTableViewDataSource, NSTableVie
     func setStatus(_ status: AgentStatus?) { configureStatusPopup(status: status) }
     func focusSearch() { window?.makeFirstResponder(searchField) }
 
+    func setTaskState(_ state: String, message: String? = nil) {
+        let resultCount = rows.compactMap(\.id).count
+        setAccessibilityValue(state)
+        setAccessibilityHelp("task-state=\(state); result-count=\(resultCount)")
+        tableView.setAccessibilityHelp("task-state=\(state); result-count=\(resultCount)")
+        taskStateLabel.stringValue = message ?? {
+            switch state {
+            case "loading": return "Loading Relay data…"
+            case "no_results": return "No matching results"
+            case "data_unavailable": return "Relay data is unavailable"
+            default: return ""
+            }
+        }()
+        taskStateLabel.isHidden = taskStateLabel.stringValue.isEmpty
+        taskStateLabel.textColor = state == "data_unavailable" ? RelayDesign.destructive : .secondaryLabelColor
+    }
+
     private func buildView() {
         modeLabel.font = NSFont.systemFont(ofSize: 24, weight: .bold)
         subtitleLabel.font = NSFont.systemFont(ofSize: 12)
         subtitleLabel.textColor = .secondaryLabelColor
         scopeLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
         scopeLabel.textColor = RelayDesign.signal
+        taskStateLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        taskStateLabel.identifier = NSUserInterfaceItemIdentifier("relay.search.state")
+        taskStateLabel.setAccessibilityLabel("Relay search state")
+        taskStateLabel.isHidden = true
 
         searchField.placeholderString = "Search sessions, repositories, branches, or evidence"
+        searchField.identifier = NSUserInterfaceItemIdentifier("relay.search.input")
         searchField.delegate = self
         searchField.sendsSearchStringImmediately = true
         searchField.translatesAutoresizingMaskIntoConstraints = false
@@ -1343,7 +1413,7 @@ private final class RelayListPaneView: NSView, NSTableViewDataSource, NSTableVie
         filterRow.spacing = 7
         filterRow.translatesAutoresizingMaskIntoConstraints = false
 
-        let heading = NSStackView(views: [modeLabel, subtitleLabel, scopeLabel])
+        let heading = NSStackView(views: [modeLabel, subtitleLabel, scopeLabel, taskStateLabel])
         heading.orientation = .vertical
         heading.alignment = .leading
         heading.spacing = 4
@@ -1358,6 +1428,7 @@ private final class RelayListPaneView: NSView, NSTableViewDataSource, NSTableVie
         tableView.backgroundColor = .clear
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowSizeStyle = .medium
+        tableView.identifier = NSUserInterfaceItemIdentifier("relay.search.results")
         tableView.setAccessibilityLabel("Relay items")
         let scroll = NSScrollView()
         scroll.documentView = tableView
@@ -1636,6 +1707,8 @@ private final class RelaySessionCellView: NSTableCellView {
             badge.centerYAnchor.constraint(equalTo: badgeContainer.centerYAnchor)
         ])
         setAccessibilityLabel("\(session.title), \(session.status.displayName)")
+        identifier = NSUserInterfaceItemIdentifier("relay.search.result.\(session.id)")
+        setAccessibilityHelp("result-id=\(session.id); action=select")
     }
 }
 
@@ -1683,6 +1756,8 @@ private final class RelayCandidateCellView: NSTableCellView {
             badge.centerYAnchor.constraint(equalTo: badgeContainer.centerYAnchor)
         ])
         setAccessibilityLabel("\(candidate.title), \(candidate.lifecycle.rawValue)")
+        identifier = NSUserInterfaceItemIdentifier("relay.search.result.\(candidate.id)")
+        setAccessibilityHelp("result-id=\(candidate.id); action=select")
     }
 }
 
@@ -1725,6 +1800,8 @@ private final class RelayMetricCellView: NSTableCellView {
         detail.stringValue = "\(metric.precision.rawValue) · \(metric.unit.isEmpty ? metric.source : metric.unit)"
         value.stringValue = metricValue(metric)
         setAccessibilityLabel("\(metric.label), \(value.stringValue)")
+        identifier = NSUserInterfaceItemIdentifier("relay.search.result.\(metric.id)")
+        setAccessibilityHelp("result-id=\(metric.id); action=select")
     }
 
     private func metricValue(_ metric: UsageMetric) -> String {
@@ -1746,6 +1823,10 @@ private final class RelayInspectorPaneView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        identifier = NSUserInterfaceItemIdentifier("relay.result.details")
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel("Result details")
         buildView()
     }
 
@@ -1754,6 +1835,7 @@ private final class RelayInspectorPaneView: NSView {
 
     func showEmpty(title: String, message: String, symbol: String = "cursorarrow.click.2") {
         clear(title: "Inspector")
+        setTaskState("empty")
         let empty = RelayEmptyStateView(title: title, message: message, symbol: symbol)
         stack.addArrangedSubview(empty)
         empty.heightAnchor.constraint(greaterThanOrEqualToConstant: 240).isActive = true
@@ -1768,6 +1850,7 @@ private final class RelayInspectorPaneView: NSView {
         onCopyPath: @escaping () -> Void
     ) {
         clear(title: session.title)
+        setTaskState("details_ready")
         addBadgeRow(status: session.status, provider: session.provider)
         if let message { stack.addArrangedSubview(RelayInlineBanner(message: message.text, tone: message.tone)) }
         let actions = NSStackView()
@@ -1808,6 +1891,7 @@ private final class RelayInspectorPaneView: NSView {
         onUndo: @escaping () -> Void
     ) {
         clear(title: candidate.title)
+        setTaskState("details_ready")
         let badge = RelayStatusBadge(text: candidate.lifecycle.rawValue.capitalized, color: RelayDesign.lifecycleColor(candidate.lifecycle))
         let confidence = relayLabel("\(candidate.lane.rawValue.replacingOccurrences(of: "_", with: " ")) · confidence \(Int(candidate.confidence * 100))%", size: 12, color: .secondaryLabelColor)
         let metadata = NSStackView(views: [badge, confidence])
@@ -1862,6 +1946,7 @@ private final class RelayInspectorPaneView: NSView {
 
     func showMetric(_ metric: UsageMetric, activity: [UsageActivityPoint], message: (text: String, tone: NSColor)?) {
         clear(title: metric.label)
+        setTaskState("details_ready")
         let value = relayLabel(metricValue(metric), size: 34, weight: .bold)
         stack.addArrangedSubview(value)
         let precision = relayLabel("\(metric.precision.rawValue) · \(metric.source)", size: 11, color: .secondaryLabelColor)
@@ -1912,6 +1997,11 @@ private final class RelayInspectorPaneView: NSView {
     private func clear(title: String) {
         titleLabel.stringValue = title
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+    }
+
+    func setTaskState(_ state: String) {
+        setAccessibilityValue(state)
+        setAccessibilityHelp("task-state=\(state); title=\(titleLabel.stringValue)")
     }
 
     private func addBadgeRow(status: AgentStatus, provider: ProviderID) {
