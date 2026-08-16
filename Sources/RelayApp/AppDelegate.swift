@@ -15,7 +15,7 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
             self.store = store
             self.monitor = monitor
             windowController = RelayWindowController(store: store, monitor: monitor)
-            windowController?.showWindow(nil)
+            windowController?.show(destination: .today)
             configureMenu()
             monitor.start()
             NSApp.activate(ignoringOtherApps: true)

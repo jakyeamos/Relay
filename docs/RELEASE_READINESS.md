@@ -29,6 +29,8 @@ must have this shape:
 
 The timestamp must be within 24 hours of the gate run. The evidence must come
 from a real desktop session; the script does not create screenshots,
-accessibility receipts, or fixture substitutes. Until this artifact exists,
-Relay remains a native release candidate with local build evidence but no
-public release claim.
+accessibility receipts, or fixture substitutes. The reviewed desktop evidence
+must show a non-zero Relay window frame and resolve the `relay.search.input`,
+`relay.search.results`, and `relay.result.details` accessibility identifiers.
+Until this artifact exists, Relay remains a native release candidate with local
+build evidence but no public release claim.

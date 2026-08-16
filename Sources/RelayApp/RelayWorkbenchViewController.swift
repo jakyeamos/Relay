@@ -37,14 +37,17 @@ final class RelayWindowController: NSWindowController {
     private let rootViewController: RelayWorkbenchViewController
 
     init(store: SQLiteStore, monitor: MonitoringCoordinator) {
+        let initialContentSize = NSSize(width: 1_280, height: 820)
         rootViewController = RelayWorkbenchViewController(store: store, monitor: monitor)
+        rootViewController.preferredContentSize = initialContentSize
         let window = NSWindow(contentViewController: rootViewController)
         window.title = "Relay"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.setContentSize(NSSize(width: 1_280, height: 820))
+        window.setContentSize(initialContentSize)
         window.minSize = NSSize(width: 920, height: 600)
+        window.contentMinSize = NSSize(width: 920, height: 600)
         window.isReleasedWhenClosed = false
         window.identifier = NSUserInterfaceItemIdentifier("relay.workbench")
         super.init(window: window)
@@ -55,14 +58,21 @@ final class RelayWindowController: NSWindowController {
 
     func show(destination: RelayDestination) {
         rootViewController.show(destination: destination)
-        showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
+        presentWindow()
     }
 
     func toggleCommandPalette() {
         rootViewController.toggleCommandPalette()
-        showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
+        presentWindow()
+    }
+
+    private func presentWindow() {
+        guard let window else { return }
+        window.makeKeyAndOrderFront(nil)
+        if window.frame.width < window.minSize.width || window.frame.height < window.minSize.height {
+            window.setContentSize(rootViewController.preferredContentSize)
+            window.center()
+        }
     }
 }
 
@@ -196,7 +206,6 @@ final class RelayWorkbenchViewController: NSViewController, NSSplitViewDelegate 
     override func loadView() {
         rootView.wantsLayer = true
         rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        rootView.translatesAutoresizingMaskIntoConstraints = false
         view = rootView
 
         rootSplit.isVertical = true
@@ -216,6 +225,8 @@ final class RelayWorkbenchViewController: NSViewController, NSSplitViewDelegate 
         rootView.addSubview(commandPalette)
 
         NSLayoutConstraint.activate([
+            rootView.widthAnchor.constraint(greaterThanOrEqualToConstant: 920),
+            rootView.heightAnchor.constraint(greaterThanOrEqualToConstant: 600),
             rootSplit.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             rootSplit.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             rootSplit.topAnchor.constraint(equalTo: rootView.topAnchor),
