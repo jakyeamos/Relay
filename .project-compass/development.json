@@ -1,0 +1,130 @@
+{
+  "schema": "compass-development/v1",
+  "revision": 1,
+  "inventory": {
+    "source": "git-tracked",
+    "include": [
+      "Package.swift",
+      "Resources/**",
+      "Sources/**",
+      "Tests/**",
+      "scripts/**",
+      "README.md",
+      ".agents/change-surface-matrix.json",
+      ".project-compass/development.json",
+      ".project-compass/behaviors.json"
+    ],
+    "exclude": [],
+    "behavior_ref": ".project-compass/behaviors.json"
+  },
+  "bindings": [
+    {
+      "id": "source-reviewed-bootstrap-proposal",
+      "compass_id": "project",
+      "authority": "accepted",
+      "paths": [
+        "Package.swift",
+        "Resources/Info.plist",
+        "Resources/codes.relay.app.plist",
+        "Resources/com.relay.helper.plist",
+        "Sources/CSQLite/module.modulemap",
+        "Sources/CSQLite/shim.h",
+        "Sources/RelayApp/AppDelegate.swift",
+        "Sources/RelayApp/RelayActionService.swift",
+        "Sources/RelayApp/RelayUIComponents.swift",
+        "Sources/RelayApp/RelayWorkbenchViewController.swift",
+        "Sources/RelayApp/main.swift",
+        "Sources/RelayCore/CodexAdapter.swift",
+        "Sources/RelayCore/Configuration.swift",
+        "Sources/RelayCore/ContextResolver.swift",
+        "Sources/RelayCore/Domain.swift",
+        "Sources/RelayCore/FileTransactions.swift",
+        "Sources/RelayCore/Hashing.swift",
+        "Sources/RelayCore/Monitoring.swift",
+        "Sources/RelayCore/PlaybookEngine.swift",
+        "Sources/RelayCore/SQLiteStore.swift",
+        "Sources/RelayCore/SessionTitleNormalizer.swift",
+        "Sources/RelayCore/StatusInference.swift",
+        "Sources/RelayCore/UsageService.swift",
+        "Sources/RelayCore/Workspace.swift",
+        "Sources/RelayHelper/main.swift",
+        "Tests/Fixtures/codex/session.jsonl",
+        "Tests/RelayCoreTests/RelayCoreTests.swift",
+        "scripts/build-app.sh",
+        "scripts/check_environment_contract.py",
+        "scripts/install-launch-agent.sh",
+        "scripts/install-startup.sh",
+        "scripts/pre-cr-test.sh",
+        "scripts/release-check.sh",
+        "scripts/test-with-coverage.sh",
+        "scripts/test_environment_contract.py",
+        "scripts/uninstall-startup.sh",
+        "README.md",
+        ".agents/change-surface-matrix.json",
+        ".project-compass/development.json",
+        ".project-compass/behaviors.json"
+      ],
+      "outcomes": [
+        "today-to-playbook",
+        "visible-safe-state"
+      ],
+      "references": [
+        "README.md",
+        ".agents/context/architecture.md",
+        "Tests/RelayCoreTests/RelayCoreTests.swift",
+        "docs/RELEASE_READINESS.md",
+        "Sources/RelayApp/RelayActionService.swift",
+        "Sources/RelayApp/RelayWorkbenchViewController.swift"
+      ],
+      "constraints": [
+        "Keep default ingestion local, bounded and cancellable; do not transmit prompts, transcripts, credentials, code or diffs to providers.",
+        "Keep provider parsing behind normalized adapters and core storage separate from AppKit state; helper ingestion must not require the UI.",
+        "Require exact selected paths, symlink resolution, matching precondition hashes, atomic writes, audit and guarded undo for Playbook changes.",
+        "Keep optional provider-assisted analysis outside the monitor and preserve separate review before any future disclosure.",
+        "Treat startup/helper installation as explicit user actions, never test defaults.",
+        "Keep unknown usage/quota and inferred status explicit; do not claim live provider state from local records.",
+        "Core tests do not certify native workbench actions, installed helper lifecycle or release capture/accessibility evidence.",
+        "Do not infer multi-file undo atomicity from the single-file undo tests: restoreApplied currently writes previousContent on partial undo failure, so recovery of already undone entries remains a concrete implementation gap."
+      ],
+      "proof": [
+        {
+          "id": "core-oracles",
+          "receipt": ".project-compass/evidence/core-oracles.json",
+          "command": [
+            "swift",
+            "test"
+          ],
+          "oracle_ref": "Tests/RelayCoreTests/RelayCoreTests.swift",
+          "behavior_ids": [
+            "bounded-local-ingestion",
+            "workspace-and-usage",
+            "reviewed-playbook-transactions"
+          ]
+        }
+      ],
+      "behavior_ids": [
+        "bounded-local-ingestion",
+        "workspace-and-usage",
+        "reviewed-playbook-transactions",
+        "native-workbench-actions",
+        "independent-helper"
+      ],
+      "handoff_review": "RelayCore owns adapters/store/inference/usage/playbook and guarded file transactions; RelayApp owns AppKit interaction; RelayHelper shares monitoring without the UI. These documented target seams remain one coherent local-workbench root. Explicit file selection/confirmation precedes guarded apply; provider-assisted analysis is outside default monitoring. Native actions may launch configured tmux/Terminal only from selected user actions.",
+      "decision_id": "reviewed-existing-product-association"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "bootstrap-boundary-proposal",
+      "summary": "Bounded local session ingestion and guarded playbook file transactions; exact path-to-outcome association requires owner reconciliation.",
+      "source": "README.md",
+      "status": "proposed"
+    },
+    {
+      "id": "reviewed-existing-product-association",
+      "status": "accepted",
+      "source": "README.md",
+      "summary": "Associate existing local workbench outcomes and documented core/native/helper boundaries without changing execution, installation or release authority."
+    }
+  ]
+}

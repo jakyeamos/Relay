@@ -82,3 +82,7 @@ The app never applies a Playbook suggestion without an explicit path selection, 
 ## Project shape
 
 `RelayCore` owns the provider contract, SQLite store, normalized session model, deterministic intelligence, usage metrics, and guarded file transactions. `RelayApp` owns the AppKit shell. `RelayHelper` reuses the same monitoring coordinator for background ingestion.
+
+## Behavior intent and proof
+
+The approved [product requirements](README.md) are linked to exact source and proof in [Compass](.project-compass/development.json), with change routing in the [surface matrix](.agents/change-surface-matrix.json). Core tests do not establish native workbench actions, installed helper lifecycle or reviewed capture/accessibility release evidence. Multi-file partial undo recovery remains a source-observed gap; metadata does not change runtime or startup behavior.

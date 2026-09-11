@@ -1,0 +1,35 @@
+{
+  "schema": "compass-behavior-inventory/v1",
+  "behaviors": [
+    {
+      "id": "bounded-local-ingestion",
+      "title": "Ingest bounded local sessions with explicit provider gaps",
+      "spec_ref": ".agents/context/architecture.md",
+      "authority": "accepted"
+    },
+    {
+      "id": "workspace-and-usage",
+      "title": "Query local workspace/session projections without inventing provider quotas",
+      "spec_ref": ".agents/context/architecture.md",
+      "authority": "accepted"
+    },
+    {
+      "id": "reviewed-playbook-transactions",
+      "title": "Preview exact paths, confirm changes, enforce preconditions and preserve undo",
+      "spec_ref": ".agents/context/architecture.md",
+      "authority": "accepted"
+    },
+    {
+      "id": "native-workbench-actions",
+      "title": "Expose Today Playbook Usage and user-selected resume/reveal actions",
+      "spec_ref": ".agents/context/architecture.md",
+      "authority": "accepted"
+    },
+    {
+      "id": "independent-helper",
+      "title": "Run bounded local monitoring independently of the visible app",
+      "spec_ref": ".agents/context/architecture.md",
+      "authority": "accepted"
+    }
+  ]
+}
