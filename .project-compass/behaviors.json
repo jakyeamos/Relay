@@ -30,6 +30,15 @@
       "title": "Run bounded local monitoring independently of the visible app",
       "spec_ref": ".agents/context/architecture.md",
       "authority": "accepted"
+    },
+    {
+      "id": "file-transaction-preconditions-and-undo",
+      "title": "Apply and undo fixture file transactions with stale preconditions and symlink preservation",
+      "spec_ref": ".agents/context/architecture.md",
+      "oracle_refs": [
+        "Tests/RelayCoreTests/RelayCoreTests.swift"
+      ],
+      "authority": "accepted"
     }
   ]
 }
