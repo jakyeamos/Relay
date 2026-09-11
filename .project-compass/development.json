@@ -1,6 +1,6 @@
 {
   "schema": "compass-development/v1",
-  "revision": 1,
+  "revision": 2,
   "inventory": {
     "source": "git-tracked",
     "include": [
@@ -98,18 +98,18 @@
           "behavior_ids": [
             "bounded-local-ingestion",
             "workspace-and-usage",
-            "reviewed-playbook-transactions"
+            "file-transaction-preconditions-and-undo"
           ]
         }
       ],
       "behavior_ids": [
         "bounded-local-ingestion",
         "workspace-and-usage",
-        "reviewed-playbook-transactions",
+        "file-transaction-preconditions-and-undo",
         "native-workbench-actions",
         "independent-helper"
       ],
-      "handoff_review": "RelayCore owns adapters/store/inference/usage/playbook and guarded file transactions; RelayApp owns AppKit interaction; RelayHelper shares monitoring without the UI. These documented target seams remain one coherent local-workbench root. Explicit file selection/confirmation precedes guarded apply; provider-assisted analysis is outside default monitoring. Native actions may launch configured tmux/Terminal only from selected user actions.",
+      "handoff_review": "RelayCore owns adapters/store/inference/usage/playbook and guarded file transactions; RelayApp owns AppKit interaction; RelayHelper shares monitoring without the UI. These documented target seams remain one coherent local-workbench root. Explicit file selection/confirmation precedes guarded apply; provider-assisted analysis is outside default monitoring. Native actions may launch configured tmux/Terminal only from selected user actions. The linked core oracle directly constructs PathGrant and proves file apply/undo, stale preconditions and symlink preservation only. Native exact-path preview and user confirmation remain required but unverified; reviewed-playbook-transactions remains accepted and unbound.",
       "decision_id": "reviewed-existing-product-association"
     }
   ],
